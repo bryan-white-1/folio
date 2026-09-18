@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://document.local data: blob:; font-src 'self'; connect-src 'self' ws://127.0.0.1:*; object-src 'none'; base-uri 'none'; frame-src 'none'" />
+    <title>Folio · Markdown Editor</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="editor-header">
+        <div class="document-label"><span class="file-icon">M↓</span><span id="document-name">시작하기.md</span><span id="dirty-dot" title="저장하지 않은 변경"></span></div>
+      </header>
+      <nav class="format-bar" aria-label="서식 도구">
+        <button id="heading-picker" title="본문·제목 선택" aria-label="본문·제목 선택" aria-haspopup="menu" aria-expanded="false"><span>본문</span><small>⌄</small></button><span class="divider"></span>
+        <button data-command="bold" title="굵게 (Ctrl+B)"><b>B</b></button>
+        <button data-command="italic" title="기울임 (Ctrl+I)"><i>I</i></button>
+        <button data-command="strike" title="취소선"><s>S</s></button><span class="divider"></span>
+        <button data-command="bullet" title="글머리 목록">☷</button>
+        <button data-command="task" title="체크리스트" aria-label="체크리스트" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1.5"/><path d="m4.5 7.5 1.5 1.5 2.5-3M14 7.5h7M14 17.5h7"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></button>
+        <button data-command="quote" title="인용">❞</button>
+        <button data-command="code" title="코드 블록 (Ctrl+Alt+C)" aria-label="코드 블록 (Ctrl+Alt+C)" aria-pressed="false">&lt;/&gt;</button>
+        <button data-command="link" title="링크 삽입">↗</button>
+        <button data-command="table" title="표 삽입">▦</button>
+        <button data-command="image" title="이미지 삽입" aria-label="이미지 삽입"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg></button><span class="divider"></span>
+        <button id="undo" title="실행 취소 (Ctrl+Z)">↶</button>
+        <button id="redo" title="다시 실행 (Ctrl+Y)">↷</button>
+        <div class="spacer"></div><span id="mode-hint" hidden>문서 위에서 바로 편집하세요</span>
+        <div class="mode-switch" role="tablist" aria-label="편집 모드">
+          <button id="rendered-mode" role="tab" aria-selected="true">렌더링</button>
+          <button id="source-mode" role="tab" aria-selected="false">원문</button>
+        </div>
+        <button id="find" title="찾기 (Ctrl+F)" aria-label="찾기 (Ctrl+F)">⌕</button>
+      </nav>
+      <div id="rendered-search" role="search" aria-label="본문 찾기" hidden>
+        <input id="search-query" type="text" placeholder="본문에서 찾기" aria-label="검색어" aria-describedby="search-count" autocomplete="off" spellcheck="false" />
+        <span id="search-count" role="status" aria-live="polite" aria-atomic="true">0 / 0</span>
+        <button id="search-previous" title="이전 일치 (Shift+Enter / Shift+F3)" aria-label="이전 일치">↑</button>
+        <button id="search-next" title="다음 일치 (Enter / F3)" aria-label="다음 일치">↓</button>
+        <button id="search-close" title="찾기 닫기 (Esc)" aria-label="찾기 닫기">×</button>
+      </div>
+      <div id="notice" role="status" hidden></div>
+      <main id="editor-scroll">
+        <div id="rendered-editor" role="tabpanel" aria-label="렌더링 편집"></div>
+        <div id="source-editor" role="tabpanel" aria-label="원문 편집" hidden></div>
+      </main>
+      <footer><span id="breadcrumb">문서</span><div class="spacer"></div><span id="stats"></span><span class="footer-separator">│</span><span>Markdown</span><span class="encoding">UTF-8</span></footer>
+      <div id="toast" role="status" hidden></div>
+      <dialog id="link-dialog"><form method="dialog"><h2>링크 삽입</h2><label>표시할 텍스트<input name="label" value="링크" required /></label><label>주소<input name="url" type="url" placeholder="https://" required /></label><div class="dialog-actions"><button value="cancel" formnovalidate>취소</button><button value="insert" class="primary">삽입</button></div></form></dialog>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

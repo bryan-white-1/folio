@@ -1,0 +1,22 @@
+.mermaid-card{margin:24px 0;border:1px solid var(--line);border-radius:8px;background:var(--paper);overflow:hidden;line-height:1.4;position:relative}
+.mermaid-card-bar{display:flex;align-items:center;gap:8px;min-height:43px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--surface);font:12px/1.4 "Segoe UI","Malgun Gothic",sans-serif}
+.mermaid-badge{color:var(--muted);font-weight:600;white-space:nowrap;letter-spacing:.2px}
+.mermaid-status{flex:1;font-size:11px;color:var(--muted)}
+.mermaid-card-bar button{font-size:12px;padding:5px 9px;white-space:nowrap;opacity:.75}
+.mermaid-card:hover button,.mermaid-card:focus-within button{opacity:1}
+.mermaid-card-bar button:disabled{opacity:.3}
+.mermaid-diagram{padding:24px;line-height:1.4;overflow:auto;min-height:72px}
+.mermaid-card[data-state=waiting] .mermaid-diagram,.mermaid-card[data-state=rendering] .mermaid-diagram:empty{min-height:120px;background:linear-gradient(120deg,var(--paper),var(--surface),var(--paper))}
+.mermaid-card[data-state=error] .mermaid-status,.mermaid-card[data-state=limited] .mermaid-status{color:#b06732}
+.ProseMirror .mermaid-fallback{border:0;border-top:1px solid var(--line);border-radius:0;margin:0;padding:16px 20px;max-height:260px;white-space:pre-wrap;font:12px/1.6 Consolas,"Malgun Gothic",monospace}
+.mermaid-card[data-state=error] .mermaid-diagram,.mermaid-card[data-state=limited] .mermaid-diagram,.mermaid-card[data-state=unsupported] .mermaid-diagram{display:none}
+.mermaid-stage{position:fixed;left:-20000px;top:0;width:1600px;pointer-events:none;opacity:0;line-height:1.4;font:16px/1.4 "Segoe UI","Malgun Gothic",sans-serif}
+dialog.mermaid-viewer{width:92vw;max-width:1600px;height:90vh;max-height:90vh;padding:0;overflow:hidden;border-radius:8px}
+.mermaid-viewer[open]{display:flex;flex-direction:column}
+.mermaid-viewer-bar{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--surface);flex-shrink:0;font-size:12px}
+.mermaid-viewer-bar strong{flex:1;font-size:14px;color:var(--muted)}
+.mermaid-viewer-bar button{padding:7px 10px;border:1px solid var(--line);background:var(--paper);white-space:nowrap}
+.mermaid-viewer-bar output{min-width:42px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted)}
+.mermaid-viewport{flex:1;min-height:0;overflow:auto;padding:32px;background:var(--paper);overscroll-behavior:contain}
+.mermaid-canvas{margin:0 auto;line-height:1.4}
+@media(max-width:700px){.mermaid-card-bar{flex-wrap:wrap;gap:4px}.mermaid-status{min-width:40px}.mermaid-diagram{padding:16px}.mermaid-viewer-bar{padding:10px;gap:4px;flex-wrap:wrap}.mermaid-viewer-bar strong{flex-basis:100%}.mermaid-viewport{padding:20px}}

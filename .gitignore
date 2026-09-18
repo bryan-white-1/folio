@@ -1,0 +1,16 @@
+node_modules/
+web/dist/
+bin/
+obj/
+.tools/
+artifacts/
+test-results/
+playwright-report/
+*.user
+.vs/
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key

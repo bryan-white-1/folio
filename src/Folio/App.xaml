@@ -1,0 +1,35 @@
+<Application
+    x:Class="Folio.FolioApp"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <controls:XamlControlsResources />
+            </ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="ButtonBackground" Color="White" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="TextControlBackground" Color="White" />
+                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="White" />
+                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="White" />
+                    <SolidColorBrush x:Key="TreeViewItemBackgroundPointerOver" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="TreeViewItemBackgroundSelected" Color="#F3F4F6" />
+                    <SolidColorBrush x:Key="TreeViewItemBackgroundPressed" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedPointerOver" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedPressed" Color="#E5E7EB" />
+                    <SolidColorBrush x:Key="TreeViewItemSelectionIndicatorForeground" Color="#374151" />
+                    <SolidColorBrush x:Key="TreeViewItemSelectionIndicatorForegroundPointerOver" Color="#374151" />
+                    <SolidColorBrush x:Key="TreeViewItemSelectionIndicatorForegroundPressed" Color="#374151" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <DataTemplate x:Key="OutlineNodeTemplate">
+                <controls:TreeViewItem Content="{Binding Content}" Height="{Binding Content.Height}" MinHeight="0" Padding="0" />
+            </DataTemplate>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

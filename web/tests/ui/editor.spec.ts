@@ -1,0 +1,124 @@
+import { test, expect, type Page } from '@playwright/test';
+
+async function load(page: Page, text: string) { await page.evaluate(async text => { await (window as any).folio.receive({ type: 'load', text, documentId: 'test', name: '테스트.md', dirty: false }); }, text); }
+async function snapshot(page: Page) { return page.evaluate(() => (window as any).folio.snapshot()); }
+test.beforeEach(async ({ page }) => { await page.goto('/'); await page.waitForFunction(() => !!(window as any).folio); });
+
+test('Windows layout has one compact toolbar with both editor modes', async ({ page }) => {
+  await page.evaluate(() => { document.documentElement.dataset.host = 'windows'; });
+  await expect(page.locator('.editor-header')).toBeHidden();
+  await expect(page.getByRole('tab', { name: '렌더링' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: '원문' })).toBeVisible();
+  expect((await page.locator('#editor-scroll').boundingBox())!.y).toBe(48);
+  await page.getByRole('tab', { name: '원문' }).click(); await expect(page.locator('.cm-editor')).toBeVisible();
+});
+
+test('configuration changes body and table spacing and document position without editing Markdown', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  const text = '# 제목\n\n본문\n\n| 열 | 내용 |\n| --- | --- |\n| 값 | 텍스트 |\n';
+  await load(page, text);
+  await page.evaluate(() => (window as any).folio.receive({ type: 'configuration', bodyLineHeight: 1.4, documentAlignment: 'left' }));
+  await expect(page.locator('.ProseMirror p').first()).toHaveCSS('line-height', '21px');
+  await expect(page.locator('.ProseMirror td').first()).toHaveCSS('line-height', '18.2px');
+  expect((await page.locator('#rendered-editor').boundingBox())!.x).toBe(0);
+  expect(await snapshot(page)).toMatchObject({ text, dirty: false });
+  await page.getByRole('tab', { name: '원문' }).click(); await page.getByRole('tab', { name: '렌더링' }).click();
+  await expect(page.locator('.ProseMirror')).toHaveCSS('line-height', '21px');
+  await page.evaluate(() => (window as any).folio.receive({ type: 'configuration', bodyLineHeight: 2, documentAlignment: 'center' }));
+  expect((await page.locator('#rendered-editor').boundingBox())!.x).toBeGreaterThan(200);
+  await expect(page.locator('.ProseMirror')).toHaveCSS('line-height', '30px');
+  expect(await snapshot(page)).toMatchObject({ text, dirty: false });
+});
+
+test('initial editor renders Korean, tables and code without runtime errors', async ({ page }) => {
+  await expect(page.locator('.ProseMirror h1')).toHaveText('생각이 문서가 되는 곳');
+  await expect(page.locator('.ProseMirror table')).toBeVisible();
+  expect((await snapshot(page)).dirty).toBe(false);
+  await page.screenshot({ path: '../artifacts/editor-light.png', fullPage: true });
+  await page.evaluate(() => (window as any).folio.receive({ type: 'theme', value: 'dark' }));
+  await page.screenshot({ path: '../artifacts/editor-dark.png', fullPage: true });
+});
+test('switching modes does not normalize or mark untouched Markdown dirty', async ({ page }) => {
+  const original = '# 제목\n\n* 항목\n\n__강조__  \n다음 줄\n\n'; await load(page, original);
+  for (let n = 0; n < 3; n++) { await page.getByRole('tab', { name: '원문' }).click(); await page.getByRole('tab', { name: '렌더링' }).click(); }
+  expect(await snapshot(page)).toMatchObject({ text: original, dirty: false });
+});
+test('source edit updates rendered content and undo crosses mode changes', async ({ page }) => {
+  await load(page, '# 처음\n\n본문\n'); await page.getByRole('tab', { name: '원문' }).click();
+  await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('\n## 새로운 제목\n\n한글 편집');
+  await page.getByRole('tab', { name: '렌더링' }).click(); await expect(page.locator('.ProseMirror h2')).toHaveText('새로운 제목');
+  await page.locator('.ProseMirror').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText(' 완료');
+  expect((await snapshot(page)).text).toContain('완료');
+  await page.keyboard.press('Control+z'); expect((await snapshot(page)).text).not.toContain('완료');
+  await page.keyboard.press('Control+z'); expect((await snapshot(page)).text).toBe('# 처음\n\n본문\n');
+});
+test('HTML remains intact while rendered body stays editable', async ({ page }) => {
+  const text = '# 문서\n\n<div>보존할 HTML</div>\n'; await load(page, text);
+  await expect(page.locator('#notice')).toBeHidden(); await expect(page.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'true');
+  await page.locator('.ProseMirror h1').click(); await page.keyboard.press('End'); await page.keyboard.insertText(' 수정');
+  expect((await snapshot(page)).text).toContain('<div>보존할 HTML</div>');
+  await page.getByRole('tab', { name: '원문' }).click();
+  await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('추가'); expect((await snapshot(page)).text).toContain('추가');
+});
+test('br generated by empty paragraphs never disables rendered editing', async ({ page }) => {
+  await load(page, '# 제목\n\n첫 본문\n\n<br />\n\n다음 본문\n');
+  await expect(page.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'true');
+  await page.locator('.ProseMirror p').first().click(); await page.keyboard.press('End'); await page.keyboard.insertText(' 편집 성공');
+  await page.getByRole('tab', { name: '원문' }).click();
+  expect((await snapshot(page)).text).toContain('편집 성공'); expect((await snapshot(page)).text).toContain('<br />');
+  await page.getByRole('tab', { name: '렌더링' }).click();
+  await page.locator('.ProseMirror p').nth(1).click(); await page.keyboard.insertText('빈 줄에도 입력');
+  expect((await snapshot(page)).text).toContain('빈 줄에도 입력');
+  await page.locator('.ProseMirror p').last().click(); await page.keyboard.press('End'); await page.keyboard.insertText(' 다시 편집');
+  expect((await snapshot(page)).text).toContain('다시 편집');
+});
+test('new blank paragraphs remain editable after a rendered-source round trip', async ({ page }) => {
+  await load(page, '# 빈 문단\n\n본문\n');
+  await page.locator('.ProseMirror p').click(); await page.keyboard.press('End');
+  await page.keyboard.press('Enter'); await page.keyboard.press('Enter'); await page.keyboard.insertText('다음 문단');
+  await page.getByRole('tab', { name: '원문' }).click(); expect((await snapshot(page)).text).toContain('<br />');
+  await page.getByRole('tab', { name: '렌더링' }).click();
+  await page.locator('.ProseMirror p').nth(1).click(); await page.keyboard.insertText('빈 문단 편집');
+  expect((await snapshot(page)).text).toContain('빈 문단 편집');
+});
+test('front matter, reference tokens and inert HTML survive visual edits', async ({ page }) => {
+  const text = '---\ntitle: Keep # text\n---\n\n# 제목\n\n앞 [공식][site] 뒤\n\n[site]: https://example.com "원래 제목"\n\n<script>window.injected=true</script>\n';
+  await load(page, text);
+  await page.locator('.ProseMirror h1').click(); await page.keyboard.press('End'); await page.keyboard.insertText(' 변경');
+  const state = await snapshot(page);
+  for (const token of ['title: Keep # text', '[공식][site]', '[site]: https://example.com "원래 제목"', '<script>window.injected=true</script>']) expect(state.text).toContain(token);
+  expect(await page.evaluate(() => (window as any).injected)).toBeUndefined();
+  await page.getByRole('tab', { name: '원문' }).click(); await page.getByRole('tab', { name: '렌더링' }).click();
+  await expect(page.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'true');
+});
+test('heading command and table editing serialize back to source', async ({ page }) => {
+  await load(page, '# 문서\n\n단락\n'); await page.locator('.ProseMirror p').click();
+  await page.locator('[data-command=bold]').click(); await page.keyboard.insertText('강조');
+  expect((await snapshot(page)).text).toContain('**');
+  await page.locator('[data-command=table]').click(); await page.getByRole('button', { name: '표 만들기' }).click(); await expect(page.locator('.ProseMirror table')).toBeVisible();
+  await page.getByRole('tab', { name: '원문' }).click(); expect((await snapshot(page)).text).toContain('|');
+});
+test('host rename, navigation and image insertion use current document', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).packets = []; (window as any).chrome = { webview: { postMessage: (packet: any) => (window as any).packets.push(packet), addEventListener: () => {} } }; });
+  await page.reload(); await page.waitForFunction(() => !!(window as any).folio);
+  await load(page, '# 시작\n\n## 끝\n');
+  await page.evaluate(() => (window as any).folio.receive({ type: 'renameHeading', id: 'h-0', title: '변경된 제목' }));
+  await expect(page.locator('.ProseMirror h1')).toHaveText('변경된 제목');
+  await page.locator('.ProseMirror h1').click(); await page.getByRole('button', { name: '이미지 삽입', exact: true }).click();
+  await page.evaluate(() => (window as any).folio.receive({ type: 'insertImages', requestId: (window as any).packets.at(-1).requestId, documentId: (window as any).folio.snapshot().documentId, paths: ['assets/test.png'] }));
+  expect((await snapshot(page)).text).toContain('assets/test.png');
+});
+test('task checkbox edits Markdown and can be undone', async ({ page }) => {
+  await load(page, '# 할 일\n\n- [ ] 확인\n');
+  await page.getByRole('checkbox', { name: '할 일 완료' }).check();
+  expect((await snapshot(page)).text).toContain('[x]');
+  await page.locator('#undo').click(); expect((await snapshot(page)).text).toContain('[ ]');
+});
+test('composition is committed before taking a host save snapshot', async ({ page }) => {
+  await load(page, '# 한글\n\n입력\n');
+  await page.locator('.ProseMirror p').click();
+  await page.locator('.ProseMirror').dispatchEvent('compositionstart');
+  await page.keyboard.insertText('조합');
+  await page.locator('.ProseMirror').dispatchEvent('compositionend');
+  await expect.poll(async () => (await snapshot(page)).text).toContain('조합');
+});

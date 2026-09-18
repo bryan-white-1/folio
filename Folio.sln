@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{07BD29E1-5EF6-4D70-87BD-E1E56960874C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Folio", "src\Folio\Folio.csproj", "{D1FDD049-4DCB-440D-B343-0F42A45CA3FE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{DCD235EB-BE07-4B6A-8697-E07F442E8A56}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Folio.Storage.Tests", "tests\Folio.Storage.Tests\Folio.Storage.Tests.csproj", "{D515CF32-D4E0-4834-8FAE-79AD52487403}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D1FDD049-4DCB-440D-B343-0F42A45CA3FE}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{D1FDD049-4DCB-440D-B343-0F42A45CA3FE}.Debug|Any CPU.Build.0 = Debug|x64
+		{D1FDD049-4DCB-440D-B343-0F42A45CA3FE}.Release|Any CPU.ActiveCfg = Release|x64
+		{D1FDD049-4DCB-440D-B343-0F42A45CA3FE}.Release|Any CPU.Build.0 = Release|x64
+		{D515CF32-D4E0-4834-8FAE-79AD52487403}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D515CF32-D4E0-4834-8FAE-79AD52487403}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D515CF32-D4E0-4834-8FAE-79AD52487403}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D515CF32-D4E0-4834-8FAE-79AD52487403}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D1FDD049-4DCB-440D-B343-0F42A45CA3FE} = {07BD29E1-5EF6-4D70-87BD-E1E56960874C}
+		{D515CF32-D4E0-4834-8FAE-79AD52487403} = {DCD235EB-BE07-4B6A-8697-E07F442E8A56}
+	EndGlobalSection
+EndGlobal
