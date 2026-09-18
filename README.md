@@ -1,10 +1,10 @@
-갱신: 2026-09-18 18:33:41 KST (UTC+09:00)
+갱신: 2026-09-18 19:00:07 KST (UTC+09:00)
 
 # Folio — Windows Markdown Editor
 
 **문서를 읽는 화면에서 바로 편집하는 Windows용 오픈소스 Markdown 편집기.** 제목 목차로 이동하고, 원문과 렌더링을 전환하며 표·이미지·체크리스트·Mermaid 다이어그램을 다룬다. 문서는 로컬 파일로 저장하며 편집에 서버·로그인이 필요 없다.
 
-**[Windows x64 설치파일 다운로드](https://github.com/bryanbaek75/folio/releases/latest/download/Folio-Setup-0.1.11-win-x64-online.exe)** · [전체 배포 파일·변경 내역](https://github.com/bryanbaek75/folio/releases/latest) · [빌드 방법](#개발-환경과-빌드) · [Apache-2.0 라이선스](LICENSE)
+**[Windows x64 설치파일 다운로드](https://github.com/bryan-white-1/folio/releases/latest/download/Folio-Setup-0.1.11-win-x64-online.exe)** · [전체 배포 파일·변경 내역](https://github.com/bryan-white-1/folio/releases/latest) · [빌드 방법](#개발-환경과-빌드) · [Apache-2.0 라이선스](LICENSE)
 
 설치: EXE 실행 → 설치 → 시작 메뉴 **Folio**. 관리자 권한 불필요. .NET·Windows App SDK 포함, WebView2가 없는 PC에서만 최초 다운로드가 필요하다. Windows 11 x64 우선 검증. 현재 미서명 배포로 Windows 게시자 미확인·SmartScreen 안내가 표시될 수 있다.
 
@@ -44,8 +44,8 @@ Excel·표 복사: 셀 영역 드래그 → 우클릭 → 복사 또는 Ctrl+C. 
 
 | 실행 | 방법 |
 |---|---|
-| 한 파일로 설치 · 경량 권장 | [Setup EXE 다운로드](https://github.com/bryanbaek75/folio/releases/download/v0.1.11/Folio-Setup-0.1.11-win-x64-online.exe) → 설치 → 시작 메뉴 Folio. WebView2가 없을 때만 다운로드. 한국어 UI, 관리자 권한 불필요 |
-| 포터블 ZIP | [Releases](https://github.com/bryanbaek75/folio/releases/latest)의 Windows x64 ZIP 압축 해제 → `Folio.exe` 실행. WebView2 필요 |
+| 한 파일로 설치 · 경량 권장 | [Setup EXE 다운로드](https://github.com/bryan-white-1/folio/releases/download/v0.1.11/Folio-Setup-0.1.11-win-x64-online.exe) → 설치 → 시작 메뉴 Folio. WebView2가 없을 때만 다운로드. 한국어 UI, 관리자 권한 불필요 |
+| 포터블 ZIP | [Releases](https://github.com/bryan-white-1/folio/releases/latest)의 Windows x64 ZIP 압축 해제 → `Folio.exe` 실행. WebView2 필요 |
 | 오프라인 설치 직접 빌드 | `./build.ps1 -Installer -RuntimeMode Offline`. WebView2 전체 설치 파일 동봉 |
 | 바로 실행 | `artifacts/Folio-0.1.11-win-x64/Folio.exe` 실행. EXE 옆의 DLL·Assets·Web 폴더를 함께 유지 |
 | 다른 PC로 복사 | `artifacts/Folio-0.1.11-win-x64` 폴더 전체 복사 후 `Folio.exe` 실행 |
@@ -113,7 +113,7 @@ Mermaid 사용: 원문 모드에서 언어가 `mermaid`인 fenced 코드 블록�
 `package-lock.json`은 npm 의존성을 고정하고 NuGet 패키지 버전은 프로젝트에 지정한다. C# UI 조립은 `MainWindow.cs`, XAML 공용 리소스는 `App.xaml`에 있다.
 
 ```powershell
-git clone https://github.com/bryanbaek75/folio.git
+git clone https://github.com/bryan-white-1/folio.git
 cd folio
 
 # 프로젝트 루트에서 빌드·테스트·배포 ZIP 생성
@@ -173,4 +173,4 @@ cd ..
 
 ## 라이선스
 
-Folio 소스는 [Apache License 2.0](LICENSE)으로 공개한다. 외부 구성 요소의 저작권·라이선스는 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)에 정리하며, 배포 패키지에 함께 포함한다. 버그·개선 제안은 [Issues](https://github.com/bryanbaek75/folio/issues)에 등록할 수 있다.
+Folio 소스는 [Apache License 2.0](LICENSE)으로 공개한다. 외부 구성 요소의 저작권·라이선스는 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)에 정리하며, 배포 패키지에 함께 포함한다. 버그·개선 제안은 [Issues](https://github.com/bryan-white-1/folio/issues)에 등록할 수 있다.
