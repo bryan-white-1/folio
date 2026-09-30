@@ -8,6 +8,7 @@ test-results/
 playwright-report/
 *.user
 .vs/
+.serena/
 .env
 .env.*
 !.env.example

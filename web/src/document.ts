@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -40,10 +41,10 @@ export function analyze(text: string): { headings: Heading[]; protectedReason: s
     parents.push(h); headings.push(h);
   }
   headings.forEach((h, i) => { h.sectionEnd = headings.slice(i + 1).find(next => next.depth <= h.depth)?.from ?? text.length; });
-  let protectedReason: string | null = /^(---|\+\+\+)\n/.test(text) ? '메타데이터' : null;
+  let protectedReason: string | null = /^(---|\+\+\+)\n/.test(text) ? t('메타데이터') : null;
   const visit = (n: Node) => {
     if (n.type === 'image' && n.url) images.push(n.url);
-    if (['html', 'definition', 'linkReference', 'imageReference', 'footnoteDefinition', 'footnoteReference'].includes(n.type)) protectedReason ??= 'HTML 또는 참조 문법';
+    if (['html', 'definition', 'linkReference', 'imageReference', 'footnoteDefinition', 'footnoteReference'].includes(n.type)) protectedReason ??= t('HTML 또는 참조 문법');
     n.children?.forEach(visit);
   };
   visit(tree);

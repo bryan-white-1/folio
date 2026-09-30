@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { CellSelection, TableMap, selectedRect, isInTable, deleteTable, goToNextCell } from '@milkdown/kit/prose/tables';
 import { TextSelection, type EditorState, type Command } from '@milkdown/kit/prose/state';
 import { Fragment, type Node } from '@milkdown/kit/prose/model';
@@ -27,12 +28,12 @@ export function tableContext(state: EditorState) {
 
 export function tableActionReason(state: EditorState, action: TableAction) {
   const c = tableContext(state);
-  if (!c) return '편집할 표의 셀을 선택하세요.';
-  if (action === 'row-before' && c.top === 0) return '머리행 앞에는 행을 추가할 수 없습니다.';
-  if (action === 'row-delete' && c.top === 0) return '머리행은 유지해야 합니다. 내용 지우기를 사용하세요.';
-  if (action === 'row-delete' && c.map.height - (c.bottom - c.top) < 2) return '본문 행 하나는 유지해야 합니다. 내용 지우기 또는 표 삭제를 사용하세요.';
-  if (action === 'col-delete' && c.right - c.left === c.map.width) return '열 하나는 유지해야 합니다. 내용 지우기 또는 표 삭제를 사용하세요.';
-  if (['col-before', 'col-after'].includes(action) && c.map.width >= 256) return '최대 256열까지 편집할 수 있습니다.';
+  if (!c) return t('편집할 표의 셀을 선택하세요.');
+  if (action === 'row-before' && c.top === 0) return t('머리행 앞에는 행을 추가할 수 없습니다.');
+  if (action === 'row-delete' && c.top === 0) return t('머리행은 유지해야 합니다. 내용 지우기를 사용하세요.');
+  if (action === 'row-delete' && c.map.height - (c.bottom - c.top) < 2) return t('본문 행 하나는 유지해야 합니다. 내용 지우기 또는 표 삭제를 사용하세요.');
+  if (action === 'col-delete' && c.right - c.left === c.map.width) return t('열 하나는 유지해야 합니다. 내용 지우기 또는 표 삭제를 사용하세요.');
+  if (['col-before', 'col-after'].includes(action) && c.map.width >= 256) return t('최대 256열까지 편집할 수 있습니다.');
   return '';
 }
 

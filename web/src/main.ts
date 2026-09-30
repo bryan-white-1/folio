@@ -1,3 +1,4 @@
+import { language, t, tr, translateUi } from './i18n';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx } from '@milkdown/kit/core';
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInBulletListCommand, wrapInBlockquoteCommand, createCodeBlockCommand } from '@milkdown/kit/preset/commonmark';
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/kit/preset/gfm';
@@ -31,12 +32,16 @@ import { sourceTaskStatus, sourceTaskChanges, renderedTaskStatus, toggleTaskList
 import { removeCodeBlocks, selectedCodeBlocks, sourceCodeBlocks, sourceCodeRemoval } from './code-commands';
 import { installImageClipboard } from './image-clipboard';
 import { RenderedSearch, renderedSearchPlugin } from './rendered-search';
+import { installNativeShell } from './native-shell';
 
 type HostPacket = { type: string; [key: string]: any };
 type WebViewBridge = { postMessage(data: unknown): void; addEventListener(type: string, cb: (event: MessageEvent<HostPacket>) => void): void };
 declare global { interface Window { chrome?: { webview?: WebViewBridge }; folio: { receive(packet: HostPacket): Promise<void>; snapshot(): object } } }
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const bridge = window.chrome?.webview;
+document.documentElement.lang = language;
+translateUi(document.body);
+installNativeShell(bridge);
 document.documentElement.dataset.host = bridge ? 'windows' : 'browser';
 const model = new DocumentModel();
 let documentId = 'welcome';
@@ -63,7 +68,7 @@ const source = new EditorView({
   state: EditorState.create({ extensions: [
     lineNumbers(), highlightActiveLine(), drawSelection(), markdown(), syntaxHighlighting(defaultHighlightStyle), search(),
     keymap.of([...defaultKeymap, indentWithTab, ...searchKeymap]), EditorView.lineWrapping,
-    EditorView.contentAttributes.of({ 'aria-label': 'Markdown 원문', spellcheck: 'false' }),
+    EditorView.contentAttributes.of({ 'aria-label': t('Markdown 원문'), spellcheck: 'false' }),
     EditorView.updateListener.of(update => {
       if (syncing) return;
       if (update.docChanged) { model.change(update.state.doc.toString(), 'source', update.state.selection.main.head); schedulePublish(); }
@@ -78,7 +83,7 @@ function updateChrome() {
   $('dirty-dot').classList.toggle('visible', model.dirty);
   ($('undo') as HTMLButtonElement).disabled = !model.canUndo;
   ($('redo') as HTMLButtonElement).disabled = !model.canRedo;
-  $('stats').textContent = `${model.text.length.toLocaleString()}자 · ${model.text.split('\n').length.toLocaleString()}줄`;
+  $('stats').textContent = tr`${model.text.length.toLocaleString()}자 · ${model.text.split('\n').length.toLocaleString()}줄`;
   formatToolbar?.update();
   updateCommandButtons();
 }
@@ -90,7 +95,7 @@ function publish() {
 }
 function selectHeading(position: number) {
   const current = headings.findLast(h => h.from <= position);
-  $('breadcrumb').textContent = current?.label ?? '문서';
+  $('breadcrumb').textContent = current?.label ?? t('문서');
   if (lastHeadingId !== (current?.id ?? null)) {
     lastHeadingId = current?.id ?? null; send({ type: 'cursor', headingId: lastHeadingId });
   }
@@ -142,7 +147,7 @@ async function switchMode(next: typeof mode) {
   $('rendered-editor').hidden = mode !== 'rendered'; $('source-editor').hidden = mode !== 'source';
   $('rendered-mode').setAttribute('aria-selected', String(mode === 'rendered'));
   $('source-mode').setAttribute('aria-selected', String(mode === 'source'));
-  $('mode-hint').textContent = mode === 'source' ? 'Markdown 문법으로 정교하게' : '문서 위에서 바로 편집하세요';
+  $('mode-hint').textContent = mode === 'source' ? t('Markdown 문법으로 정교하게') : t('문서 위에서 바로 편집하세요');
   if (mode === 'source') { refreshSource(); source.focus(); source.dispatch({ effects: EditorView.scrollIntoView(model.cursor, { y: 'center' }) }); $('notice').hidden = true; }
   else { refreshRendered(); focusRenderedAt(model.cursor); }
   formatToolbar?.update();
@@ -159,7 +164,7 @@ async function editDiagram(pos: number) {
   const target = view.state.doc.nodeAt(pos);
   const from = block && block.value === target?.textContent ? block.bodyFrom : undefined;
   await switchMode('source');
-  if (from === undefined) { toast('블록 위치를 찾지 못했습니다. 원문에서 확인해주세요.'); return; }
+  if (from === undefined) { toast(t('블록 위치를 찾지 못했습니다. 원문에서 확인해주세요.')); return; }
   model.cursor = from;
   source.dispatch({ selection: { anchor: from }, effects: EditorView.scrollIntoView(from, { y: 'center' }) }); source.focus();
 }
@@ -189,7 +194,7 @@ async function history(redo = false) {
   else { refreshRendered(); focusRenderedAt(model.cursor); }
 }
 function insertSource(before: string, after = '') {
-  const range = source.state.selection.main; const text = source.state.sliceDoc(range.from, range.to) || '텍스트';
+  const range = source.state.selection.main; const text = source.state.sliceDoc(range.from, range.to) || t('텍스트');
   source.dispatch({ changes: { from: range.from, to: range.to, insert: before + text + after }, selection: { anchor: range.from + before.length, head: range.from + before.length + text.length } }); source.focus();
 }
 async function command(name: string) {
@@ -225,13 +230,13 @@ function updateCommandButtons() {
   const active = mode === 'source' ? sourceCodeBlocks(model.text, range.from, range.to).length > 0 : editor.action(ctx => selectedCodeBlocks(ctx.get(editorViewCtx).state).length > 0);
   const button = document.querySelector<HTMLButtonElement>('[data-command="code"]')!;
   button.setAttribute('aria-pressed', String(active));
-  button.title = active ? '코드 블록 해제 (Ctrl+Alt+C)' : '코드 블록 (Ctrl+Alt+C)';
+  button.title = active ? t('코드 블록 해제 (Ctrl+Alt+C)') : t('코드 블록 (Ctrl+Alt+C)');
   button.setAttribute('aria-label', button.title);
   const taskStatus = mode === 'source' ? sourceTaskStatus(model.text, range.from, range.to) : editor.action(ctx => renderedTaskStatus(ctx.get(editorViewCtx).state));
   const taskButton = document.querySelector<HTMLButtonElement>('[data-command="task"]')!;
   taskButton.disabled = !taskStatus.enabled;
   taskButton.setAttribute('aria-pressed', String(taskStatus.active));
-  taskButton.title = taskStatus.reason || (taskStatus.active ? '체크리스트 해제' : '체크리스트');
+  taskButton.title = taskStatus.reason || (taskStatus.active ? t('체크리스트 해제') : t('체크리스트'));
 }
 async function toggleTasks() {
   await prepareFormat(); model.breakGroup();
@@ -280,13 +285,13 @@ function syncRenderedTextSelection(view: ProseEditorView) {
   }
 }
 async function beginImageRequest() {
-  if (!bridge) { toast('이미지 파일 삽입은 Windows 앱에서 사용할 수 있습니다'); return; }
-  if (pendingImage) { toast('이미지 삽입이 끝난 뒤 다시 시도하세요.'); return; }
+  if (!bridge) { toast(t('이미지 파일 삽입은 Windows 앱에서 사용할 수 있습니다')); return; }
+  if (pendingImage) { toast(t('이미지 삽입이 끝난 뒤 다시 시도하세요.')); return; }
   await prepareFormat();
   if (mode === 'rendered') editor.action(ctx => syncRenderedTextSelection(ctx.get(editorViewCtx)));
   const state = editor.action(ctx => ctx.get(editorViewCtx).state);
   if (mode === 'rendered' && (state.selection instanceof CellSelection || !state.selection.$from.parent.inlineContent || state.selection.$from.parent.type.spec.code)) {
-    toast('이미지를 넣을 본문이나 표 셀 안에 커서를 놓으세요.'); return;
+    toast(t('이미지를 넣을 본문이나 표 셀 안에 커서를 놓으세요.')); return;
   }
   const requestId = crypto.randomUUID();
   pendingImage = { requestId, target: captureFormat() };
@@ -300,7 +305,7 @@ function captureFormat(): FormatTarget {
 }
 function restoreFormat(target: FormatTarget) {
   if (target.documentId !== documentId || target.mode !== mode || (mode === 'source' ? model.text !== target.text : editor.action(ctx => ctx.get(editorViewCtx).state.doc) !== target.doc)) {
-    toast('문서가 변경되었습니다. 편집할 위치를 다시 선택하세요.'); return false;
+    toast(t('문서가 변경되었습니다. 편집할 위치를 다시 선택하세요.')); return false;
   }
   if (mode === 'source') source.dispatch({ selection: { anchor: target.from, head: target.to } });
   else editor.action(ctx => { const view = ctx.get(editorViewCtx); view.dispatch(view.state.tr.setSelection(target.selection!)); });
@@ -341,15 +346,15 @@ async function copyTable(target: FormatTarget) {
   const data = editor.action(ctx => serializeTableSelection(ctx.get(editorViewCtx).state));
   focusFormat();
   if (!data) return;
-  if (data.text.length + data.html.length > 10_000_000) { toast('복사할 표의 크기는 최대 10MB입니다. 범위를 줄여주세요.'); return; }
+  if (data.text.length + data.html.length > 10_000_000) { toast(t('복사할 표의 크기는 최대 10MB입니다. 범위를 줄여주세요.')); return; }
   if (bridge) { send({ type: 'copyTable', ...data }); return; }
   try {
     await navigator.clipboard.write([new ClipboardItem({
       'text/plain': new Blob([data.text], { type: 'text/plain' }),
       'text/html': new Blob([data.html], { type: 'text/html' }),
     })]);
-    toast('선택한 셀을 복사했습니다');
-  } catch { toast('클립보드를 사용할 수 없습니다. 잠시 후 다시 복사하세요.'); }
+    toast(t('선택한 셀을 복사했습니다'));
+  } catch { toast(t('클립보드를 사용할 수 없습니다. 잠시 후 다시 복사하세요.')); }
 }
 async function insertSizedTable(rows: number, cols: number, target: FormatTarget) {
   await prepareFormat();
@@ -385,7 +390,7 @@ const syncPlugin = $prose(() => new Plugin({
     if (node.attrs.checked == null) return { dom: li, contentDOM: li };
     li.dataset.itemType = 'task'; li.dataset.checked = String(node.attrs.checked);
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = node.attrs.checked;
-    checkbox.contentEditable = 'false'; checkbox.setAttribute('aria-label', '할 일 완료');
+    checkbox.contentEditable = 'false'; checkbox.setAttribute('aria-label', t('할 일 완료'));
     const body = document.createElement('div'); li.append(checkbox, body);
     checkbox.addEventListener('change', () => {
       const pos = getPos(); if (pos === undefined) return;
@@ -422,7 +427,7 @@ async function receive(packet: HostPacket) {
       lastHeadingId = null; publish(); refreshSource(); refreshRendered(); $('editor-scroll').scrollTop = 0; break;
     case 'saved':
       if (packet.documentId !== documentId) return;
-      model.markSaved(packet.text); $('document-name').textContent = packet.name; publish(); toast('문서를 저장했습니다'); break;
+      model.markSaved(packet.text); $('document-name').textContent = packet.name; publish(); toast(t('문서를 저장했습니다')); break;
     case 'snapshot':
       await settleComposition(); flushRendered(); publish(); send({ type: 'snapshot', requestId: packet.requestId, ...snapshot() }); break;
     case 'jump': await jump(packet.id); break;
@@ -454,11 +459,11 @@ async function receive(packet: HostPacket) {
       model.breakGroup();
       if (mode === 'source') {
         const range = source.state.selection.main;
-        const text = paths.map(path => `![이미지](${path})`).join('\n');
+        const text = paths.map(path => tr`![이미지](${path})`).join('\n');
         source.dispatch({ changes: { from: range.from, to: range.to, insert: text }, selection: { anchor: range.from + text.length } });
       } else editor.action(ctx => {
         const view = ctx.get(editorViewCtx);
-        const images = paths.map(src => view.state.schema.nodes.image.create({ src, alt: '이미지' }));
+        const images = paths.map(src => view.state.schema.nodes.image.create({ src, alt: t('이미지') }));
         view.dispatch(view.state.tr.replaceSelection(new Slice(Fragment.fromArray(images), 0, 0)).scrollIntoView());
       });
       flushRendered(); model.breakGroup(); publish(); focusFormat();
@@ -479,7 +484,7 @@ async function start() {
   editor = await Editor.make().config(ctx => {
     configureLayout(ctx);
     ctx.set(rootCtx, $('rendered-editor')); ctx.set(defaultValueCtx, model.text);
-    ctx.update(editorViewOptionsCtx, options => ({ ...options, editable: () => true, attributes: { 'aria-label': 'Markdown 렌더링 편집', spellcheck: 'false' } }));
+    ctx.update(editorViewOptionsCtx, options => ({ ...options, editable: () => true, attributes: { 'aria-label': t('Markdown 렌더링 편집'), spellcheck: 'false' } }));
   }).use([...frontmatter, ...preserveSyntax]).use(commonmark).use($prose(() => tableClipboard((view, tr) => {
     flushRendered(); model.breakGroup(); view.dispatch(tr); flushRendered(); model.breakGroup(); publish();
   }, toast))).use($prose(() => columnResizing({ cellMinWidth: 40, defaultCellMinWidth: 100, handleWidth: 7 }))).use(gfm).use([...rawInline, ...rawBlock]).use(layoutConstraints).use($prose(() => renderedSearchPlugin(() => renderedSearch?.update()))).use(syncPlugin).create();
@@ -493,7 +498,7 @@ async function start() {
     }),
   });
   formatToolbar.update();
-  bridge?.addEventListener('message', event => { void receive(event.data).catch(error => { console.error(error); toast('요청을 처리하지 못했습니다. 원문을 확인해주세요.'); }); });
+  bridge?.addEventListener('message', event => { void receive(event.data).catch(error => { console.error(error); toast(t('요청을 처리하지 못했습니다. 원문을 확인해주세요.')); }); });
   window.folio = { receive, snapshot: () => { flushRendered(); return snapshot(); } };
   send({ type: 'ready' });
 }
@@ -512,7 +517,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-command]').forEach(b => { b.
 $('link-dialog').addEventListener('close', () => {
   const dialog = $('link-dialog') as HTMLDialogElement; if (dialog.returnValue !== 'insert') return;
   const form = dialog.querySelector('form')!; const data = new FormData(form);
-  const url = String(data.get('url')); if (!/^https?:\/\//i.test(url)) { toast('http 또는 https 주소를 입력해주세요'); return; }
+  const url = String(data.get('url')); if (!/^https?:\/\//i.test(url)) { toast(t('http 또는 https 주소를 입력해주세요')); return; }
   const label = String(data.get('label')).replace(/[\[\]\\]/g, '\\$&');
   if (mode === 'source') {
     const range = source.state.selection.main; source.dispatch({ changes: { from: range.from, to: range.to, insert: `[${label}](${url.replace(/[()]/g, c => encodeURIComponent(c) === c ? `%${c.charCodeAt(0).toString(16)}` : encodeURIComponent(c))})` } }); source.focus();
@@ -523,6 +528,7 @@ document.addEventListener('click', e => {
   if (link) { e.preventDefault(); if (e.ctrlKey) send({ type: 'command', name: 'externalLink', url: link.href }); }
 });
 document.addEventListener('keydown', e => {
+  if (e.target instanceof Element && e.target.closest('.host-dialog,.host-bar,.host-sidebar,#host-menu,#host-grip')) return;
   if (e.target instanceof Element && e.target.closest('.mermaid-viewer')) return;
   if (e.isComposing || composing) return;
   if (mode === 'rendered' && renderedSearch?.handleKeydown(e)) return;
@@ -555,7 +561,7 @@ document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
   if (inEditor && e.altKey && key === 'c') { e.preventDefault(); e.stopImmediatePropagation(); void command('code'); return; }
   const native: Record<string, string> = { s: e.shiftKey ? 'saveAs' : 'save', o: e.shiftKey ? 'recent' : 'open', n: 'new' };
-  if (native[key]) { e.preventDefault(); e.stopImmediatePropagation(); send({ type: 'command', name: native[key] }); if (!bridge) toast('파일 열기·저장은 Windows 앱에서 사용할 수 있습니다'); }
+  if (native[key]) { e.preventDefault(); e.stopImmediatePropagation(); send({ type: 'command', name: native[key] }); if (!bridge) toast(t('파일 열기·저장은 Windows 앱에서 사용할 수 있습니다')); }
   else if (key === 'z' || key === 'y') { e.preventDefault(); e.stopImmediatePropagation(); void history(key === 'y' || e.shiftKey); }
   else if (key === 'm' && e.shiftKey) { e.preventDefault(); void switchMode(mode === 'source' ? 'rendered' : 'source'); }
   else if (key === 'f') { e.preventDefault(); e.stopImmediatePropagation(); void receive({ type: 'find' }); }
@@ -581,4 +587,4 @@ document.addEventListener('mousedown', e => {
 document.addEventListener('contextmenu', e => {
   if (selectContextCell(e)) { e.preventDefault(); void formatToolbar?.open('context', undefined, { x: e.clientX, y: e.clientY }); }
 });
-void start().catch(error => { console.error(error); $('notice').hidden = false; $('notice').textContent = `편집기 초기화 실패: ${error.message}`; });
+void start().catch(error => { console.error(error); $('notice').hidden = false; $('notice').textContent = tr`편집기 초기화 실패: ${error.message}`; });

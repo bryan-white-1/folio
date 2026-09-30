@@ -8,6 +8,9 @@ if (!$InstallerPath) {
 $InstallerPath = (Resolve-Path -LiteralPath $InstallerPath).Path
 $manifest = Get-Content -LiteralPath ($InstallerPath + '.json') -Raw | ConvertFrom-Json
 $expectedVersion = $manifest.version
+if ($manifest.host -eq 'native') {
+    throw 'Native installers use scripts/Test-NativeInstaller.ps1 -AppDirectory <native publish folder> [-LegacyDirectory <0.1.11 folder>]. This isolates the installer AppId from the installed Folio.'
+}
 if ($PreviousInstallerPath) { $PreviousInstallerPath = (Resolve-Path -LiteralPath $PreviousInstallerPath).Path }
 $reportName = if ([IO.Path]::GetFileNameWithoutExtension($InstallerPath).EndsWith('-online')) { 'installer-tests-online.json' } else { 'installer-tests.json' }
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{A5B41CCB-9B45-467E-9748-621958D995B9}_is1'

@@ -72,7 +72,7 @@ test('mode-aware toolbar and host Find keep source search available and document
   await expect(page.locator('#search-count')).toHaveText('0 / 0');
 });
 
-test('navigation scrolls current matches into view; reduced corners and search remain readable in light, dark and narrow layouts', async ({ page }) => {
+test('navigation scrolls current matches into view; square controls and search remain readable in light, dark and narrow layouts', async ({ page }) => {
   await load(page, '# 검색 예제\n\n대상 첫째\n\n' + Array.from({ length: 35 }, (_, i) => `본문 ${i}`).join('\n\n') + '\n\n대상 마지막\n');
   await find(page, '대상'); await expect(page.locator('#search-count')).toHaveText('1 / 2');
   await page.keyboard.press('F3'); await expect(page.locator('#search-count')).toHaveText('2 / 2');
@@ -80,8 +80,8 @@ test('navigation scrolls current matches into view; reduced corners and search r
   const viewport = await page.locator('#editor-scroll').boundingBox();
   expect(bounds!.y).toBeGreaterThanOrEqual(viewport!.y);
   expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport!.y + viewport!.height);
-  await expect(page.locator('#find')).toHaveCSS('border-radius', '4px');
-  await expect(page.locator('.mode-switch')).toHaveCSS('border-radius', '6px');
+  await expect(page.locator('#find')).toHaveCSS('border-radius', '0px');
+  await expect(page.locator('.mode-switch')).toHaveCSS('border-radius', '0px');
   await page.keyboard.press('Shift+F3');
   await page.screenshot({ path: '../artifacts/search-light.png', fullPage: true });
   await page.evaluate(() => (window as any).folio.receive({ type: 'theme', value: 'dark' }));

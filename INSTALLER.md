@@ -1,6 +1,16 @@
-갱신: 2026-09-18 15:57:16 KST (UTC+09:00)
+갱신: 2026-09-30 08:38 KST (UTC+09:00)
 
-Folio 0.1.11 · Windows 단일 설치 패키지 · 렌더링 찾기·모서리 반경 축소·흰색 UI
+Folio 0.2.2 · Windows 네이티브 호스트 설치 패키지
+
+기본 산출물: `artifacts/Folio-Setup-0.2.2-win-x64-online.exe`. C++/Win32·WebView2 Loader·기존 웹 편집기를 동봉하며 .NET/WinUI 런타임은 제외한다. 공유 WebView2는 필요하며 최초 설치 용량은 앱 패키지와 별도다. `./build.ps1 -HostMode Legacy -Installer`로 아래 기존 0.1.11 패키지도 빌드할 수 있다.
+
+0.1.11 → 0.2.2: 동일 AppId·설정·복구·파일 연결 규약 유지. 설치 전 실행 중인 대상 앱 종료 필요. `installer/legacy-0.1.11-files.txt`에 기록한 상대 경로와 SHA-256이 모두 일치하는 구버전 런타임·웹 자산만 제거한 후 새 파일 설치. 사용자 문서·변경된 파일·알 수 없는 파일은 유지한다. 다른 구버전의 미등록 파일은 남을 수 있다.
+
+언어: 설치 선택을 install-language.txt에 기록. 유효한 앱 Language 설정이 없으면 메뉴·안내·시작 문서·예제에 적용한다. 명시적 앱 설정은 재설치보다 우선하며 앱 내 변경은 저장 후 재시작 적용. examples/en·examples/ko 모두 동봉하고, 루트 examples는 선택 언어 파일이 없을 때만 생성해 기존 예제를 보존한다. 탐색기 우클릭은 설치 언어의 “Folio에서 편집”/“Edit with Folio”. 제거 시 설치 언어 표식도 삭제한다.
+
+네이티브 설치 검증: `./scripts/Test-NativeInstaller.ps1 -AppDirectory <네이티브 배포 폴더> -LegacyDirectory artifacts/Folio-0.1.11-win-x64`. 동일 설치 스크립트에서 QA AppId만 분리하고 바로가기·파일 연결을 선택하지 않는다. 한글 경로 설치·영어/한국어 초기 언어·영문 예제·앱 언어 우선/복구·선택적 구버전 업그레이드·재설치·실제 WebView2 통합·제거·사용자 문서 및 기존 설치 등록 보존을 검증한다. 결과: `artifacts/native-installer-tests.json`. 현재 계정의 실제 Folio 설치는 교체하지 않는다.
+
+아래는 기존 0.1.11 배포 계약·검증 절차다.
 
 경량 권장: `artifacts/Folio-Setup-0.1.11-win-x64-online.exe` 하나를 복사·실행한다. WebView2가 없는 PC에서만 인터넷 연결이 필요하다. 구버전 오프라인용(0.1.1, Configuration 미포함): `artifacts/Folio-Setup-0.1.1-win-x64.exe` 약 320MB. 두 버전 모두 압축 해제·PowerShell·.NET SDK 설치 불필요. 정확한 크기는 각 EXE 옆 `.json`의 bytes 참고.
 

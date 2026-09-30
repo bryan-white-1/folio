@@ -1,3 +1,4 @@
+import { t, tr } from './i18n';
 import type { MermaidConfig } from 'mermaid';
 
 export interface Diagram { svg: string; width: number; height: number }
@@ -52,7 +53,7 @@ async function cleanSvg(raw: string): Promise<Diagram> {
   });
   const doc = new DOMParser().parseFromString(clean, 'image/svg+xml');
   const svg = doc.documentElement;
-  if (svg.localName !== 'svg' || doc.querySelector('parsererror')) throw new Error('SVG를 읽을 수 없습니다.');
+  if (svg.localName !== 'svg' || doc.querySelector('parsererror')) throw new Error(t('SVG를 읽을 수 없습니다.'));
   for (const element of [svg, ...svg.querySelectorAll('*')]) {
     for (const attr of [...element.attributes]) {
       if (/^on/i.test(attr.name) || (/^(href|xlink:href)$/i.test(attr.name) && !attr.value.startsWith('#'))) element.removeAttribute(attr.name);
@@ -82,41 +83,41 @@ async function cleanSvg(raw: string): Promise<Diagram> {
     if (radius > 0 && radius <= 8) { rect.setAttribute('rx', '10'); rect.setAttribute('ry', '10'); }
   }
   const width = box?.[2] ?? 0, height = box?.[3] ?? 0;
-  if (!(width > 0 && height > 0 && Number.isFinite(width + height))) throw new Error('다이어그램 크기를 계산할 수 없습니다.');
+  if (!(width > 0 && height > 0 && Number.isFinite(width + height))) throw new Error(t('다이어그램 크기를 계산할 수 없습니다.'));
   svg.setAttribute('role', 'img');
-  if (!svg.hasAttribute('aria-label') && !svg.hasAttribute('aria-labelledby')) svg.setAttribute('aria-label', 'Mermaid 다이어그램');
+  if (!svg.hasAttribute('aria-label') && !svg.hasAttribute('aria-labelledby')) svg.setAttribute('aria-label', t('Mermaid 다이어그램'));
   return { svg: new XMLSerializer().serializeToString(svg), width, height };
 }
 
 export function renderDiagram(source: string, theme: string, current: () => boolean): Promise<Diagram> {
   const requestEpoch = epoch;
   const task = async () => {
-    if (requestEpoch !== epoch || !current()) throw new DiagramError('취소됨', 'cancelled');
-    if (source.length > 20_000) throw new DiagramError('20,000자를 초과했습니다. 원문 모드에서 확인해주세요.', 'limited');
-    if (!source.trim()) throw new DiagramError('Mermaid 구문을 입력해주세요.');
-    if (/@\{[^}]*\b(?:img|icon)\s*:/i.test(source)) throw new DiagramError('이미지·외부 아이콘 노드는 지원하지 않습니다.', 'unsupported');
+    if (requestEpoch !== epoch || !current()) throw new DiagramError(t('취소됨'), 'cancelled');
+    if (source.length > 20_000) throw new DiagramError(t('20,000자를 초과했습니다. 원문 모드에서 확인해주세요.'), 'limited');
+    if (!source.trim()) throw new DiagramError(t('Mermaid 구문을 입력해주세요.'));
+    if (/@\{[^}]*\b(?:img|icon)\s*:/i.test(source)) throw new DiagramError(t('이미지·외부 아이콘 노드는 지원하지 않습니다.'), 'unsupported');
     const key = `${theme}\0${source}`;
     const cached = cache.get(key);
     if (cached) { cache.delete(key); cache.set(key, cached); return cached; }
     // Custom CSS resource loading is not part of diagram notation supported here.
-    if (/(?:classDef|style|linkStyle)\s+[^\n]*(?:url\s*\(|[\\@{}<>])/i.test(source)) throw new DiagramError('외부 리소스 또는 실행 가능한 스타일은 지원하지 않습니다.');
+    if (/(?:classDef|style|linkStyle)\s+[^\n]*(?:url\s*\(|[\\@{}<>])/i.test(source)) throw new DiagramError(t('외부 리소스 또는 실행 가능한 스타일은 지원하지 않습니다.'));
     library ??= import('mermaid').catch(error => { library = undefined; throw error; });
     const mermaid = (await library).default;
     await document.fonts.ready;
-    if (requestEpoch !== epoch || !current()) throw new DiagramError('취소됨', 'cancelled');
+    if (requestEpoch !== epoch || !current()) throw new DiagramError(t('취소됨'), 'cancelled');
     const config = configuration(theme === 'dark');
     config.secure = [...new Set([...Object.keys(mermaid.mermaidAPI.defaultConfig), ...Object.keys(config), 'secure', 'themeCSS', 'dompurifyConfig'])];
     mermaid.initialize(config);
     const parsed = await mermaid.parse(source);
     if (!parsed || !['flowchart', 'flowchart-v2', 'sequence', 'class', 'classDiagram', 'state', 'stateDiagram', 'er'].includes(parsed.diagramType)) {
-      throw new DiagramError('현재는 흐름도·시퀀스·클래스·상태·ER 다이어그램을 지원합니다.', 'unsupported');
+      throw new DiagramError(t('현재는 흐름도·시퀀스·클래스·상태·ER 다이어그램을 지원합니다.'), 'unsupported');
     }
     const stage = document.createElement('div'); stage.className = 'mermaid-stage';
     stage.setAttribute('aria-hidden', 'true'); document.body.append(stage);
     try {
       const { svg } = await mermaid.render(`folio-render-${++sequence}`, source, stage);
       const result = await cleanSvg(svg);
-      if (requestEpoch !== epoch || !current()) throw new DiagramError('취소됨', 'cancelled');
+      if (requestEpoch !== epoch || !current()) throw new DiagramError(t('취소됨'), 'cancelled');
       const size = result.svg.length * 2;
       if (size <= 8_000_000) {
         cache.set(key, result); cacheBytes += size;
@@ -153,7 +154,7 @@ export function diagramSvg(diagram: Diagram): SVGSVGElement {
 export function diagramMessage(error: unknown): string {
   if (error instanceof DiagramError) return error.message;
   const message = error instanceof Error ? error.message : String(error);
-  if (/max.*edges|edge.*limit|too many edges/i.test(message)) return '연결선 200개 제한을 초과했습니다. 원문 모드에서 확인해주세요.';
+  if (/max.*edges|edge.*limit|too many edges/i.test(message)) return t('연결선 200개 제한을 초과했습니다. 원문 모드에서 확인해주세요.');
   const line = /(?:parse error on line|line)\s+(\d+)/i.exec(message)?.[1];
-  return line ? `구문 오류: Mermaid ${line}번째 줄을 확인해주세요.` : '다이어그램을 렌더링할 수 없습니다. 원문 구문을 확인해주세요.';
+  return line ? tr`구문 오류: Mermaid ${line}번째 줄을 확인해주세요.` : t('다이어그램을 렌더링할 수 없습니다. 원문 구문을 확인해주세요.');
 }

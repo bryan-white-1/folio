@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { Node } from '@milkdown/kit/prose/model';
 import { NodeSelection } from '@milkdown/kit/prose/state';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
@@ -7,16 +8,16 @@ export function imageNodeView(node: Node, view: EditorView, getPos: () => number
   const dom = document.createElement('span'); dom.className = 'folio-image'; dom.contentEditable = 'false';
   const img = document.createElement('img'); img.draggable = false;
   const controls = document.createElement('span'); controls.className = 'image-controls';
-  const input = document.createElement('input'); input.type = 'number'; input.min = '40'; input.max = '2400'; input.step = '1'; input.setAttribute('aria-label', '이미지 너비 (px)');
+  const input = document.createElement('input'); input.type = 'number'; input.min = '40'; input.max = '2400'; input.step = '1'; input.setAttribute('aria-label', t('이미지 너비 (px)'));
   const unit = document.createElement('span'); unit.textContent = 'px';
-  const reset = document.createElement('button'); reset.type = 'button'; reset.textContent = '원본'; reset.title = '이미지 원본 크기로 복원'; reset.setAttribute('aria-label', reset.title);
-  const handle = document.createElement('button'); handle.type = 'button'; handle.className = 'image-resize-handle'; handle.title = '드래그로 크기 조절 · 방향키로 10px 조절'; handle.setAttribute('aria-label', '이미지 크기 조절');
+  const reset = document.createElement('button'); reset.type = 'button'; reset.textContent = t('원본'); reset.title = t('이미지 원본 크기로 복원'); reset.setAttribute('aria-label', reset.title);
+  const handle = document.createElement('button'); handle.type = 'button'; handle.className = 'image-resize-handle'; handle.title = t('드래그로 크기 조절 · 방향키로 10px 조절'); handle.setAttribute('aria-label', t('이미지 크기 조절'));
   controls.append(input, unit, reset); dom.append(img, controls, handle);
   let drag: { x: number; width: number; value: number; pointer: number; moved: boolean } | null = null;
   const paint = (width: number | null) => {
     dom.style.width = validWidth(width) ? `${width}px` : '';
     input.value = validWidth(width) ? String(width) : '';
-    input.placeholder = '자동';
+    input.placeholder = t('자동');
   };
   const update = (next: Node) => {
     if (next.type.name !== 'image') return false;

@@ -12,25 +12,29 @@
         <div class="document-label"><span class="file-icon">M↓</span><span id="document-name">시작하기.md</span><span id="dirty-dot" title="저장하지 않은 변경"></span></div>
       </header>
       <nav class="format-bar" aria-label="서식 도구">
+        <div class="format-tools">
         <button id="heading-picker" title="본문·제목 선택" aria-label="본문·제목 선택" aria-haspopup="menu" aria-expanded="false"><span>본문</span><small>⌄</small></button><span class="divider"></span>
         <button data-command="bold" title="굵게 (Ctrl+B)"><b>B</b></button>
         <button data-command="italic" title="기울임 (Ctrl+I)"><i>I</i></button>
         <button data-command="strike" title="취소선"><s>S</s></button><span class="divider"></span>
         <button data-command="bullet" title="글머리 목록">☷</button>
-        <button data-command="task" title="체크리스트" aria-label="체크리스트" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1.5"/><path d="m4.5 7.5 1.5 1.5 2.5-3M14 7.5h7M14 17.5h7"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></button>
+        <button data-command="task" title="체크리스트" aria-label="체크리스트" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="0"/><path d="m4.5 7.5 1.5 1.5 2.5-3M14 7.5h7M14 17.5h7"/><rect x="3" y="14" width="7" height="7" rx="0"/></svg></button>
         <button data-command="quote" title="인용">❞</button>
         <button data-command="code" title="코드 블록 (Ctrl+Alt+C)" aria-label="코드 블록 (Ctrl+Alt+C)" aria-pressed="false">&lt;/&gt;</button>
         <button data-command="link" title="링크 삽입">↗</button>
         <button data-command="table" title="표 삽입">▦</button>
-        <button data-command="image" title="이미지 삽입" aria-label="이미지 삽입"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg></button><span class="divider"></span>
+        <button data-command="image" title="이미지 삽입" aria-label="이미지 삽입"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="0"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg></button><span class="divider"></span>
         <button id="undo" title="실행 취소 (Ctrl+Z)">↶</button>
         <button id="redo" title="다시 실행 (Ctrl+Y)">↷</button>
-        <div class="spacer"></div><span id="mode-hint" hidden>문서 위에서 바로 편집하세요</span>
+        </div>
+        <div class="format-view">
+        <span id="mode-hint" hidden>문서 위에서 바로 편집하세요</span>
         <div class="mode-switch" role="tablist" aria-label="편집 모드">
           <button id="rendered-mode" role="tab" aria-selected="true">렌더링</button>
           <button id="source-mode" role="tab" aria-selected="false">원문</button>
         </div>
         <button id="find" title="찾기 (Ctrl+F)" aria-label="찾기 (Ctrl+F)">⌕</button>
+        </div>
       </nav>
       <div id="rendered-search" role="search" aria-label="본문 찾기" hidden>
         <input id="search-query" type="text" placeholder="본문에서 찾기" aria-label="검색어" aria-describedby="search-count" autocomplete="off" spellcheck="false" />

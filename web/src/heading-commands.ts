@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -8,7 +9,7 @@ import { setBlockType } from '@milkdown/kit/prose/commands';
 export interface HeadingStatus { enabled: boolean; level: number | null; reason: string }
 type Ast = { type: string; depth?: number; children?: Ast[]; position?: { start: { offset: number }; end: { offset: number } } };
 type Block = { from: number; to: number; level: number; content: string; enabled: boolean };
-const reason = '일반 문단·제목을 선택하세요. 표·코드·보존 구간·강제 줄바꿈은 변환할 수 없습니다.';
+const reason = t('일반 문단·제목을 선택하세요. 표·코드·보존 구간·강제 줄바꿈은 변환할 수 없습니다.');
 const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ['yaml', 'toml']);
 let cachedText: string | undefined, cachedBlocks: Block[] = [];
 const containsBreak = (node: Ast): boolean => ['break', 'html', 'linkReference', 'imageReference', 'footnoteReference'].includes(node.type) || !!node.children?.some(containsBreak);

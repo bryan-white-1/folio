@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { diagramSvg, type Diagram } from './mermaid-renderer';
 
 let closeViewer: (() => void) | undefined;
@@ -5,12 +6,12 @@ export function dismissDiagramViewer() { closeViewer?.(); }
 export function showDiagramViewer(diagram: Diagram, trigger: HTMLElement) {
   dismissDiagramViewer();
   const dialog = document.createElement('dialog'); dialog.className = 'mermaid-viewer';
-  dialog.setAttribute('aria-label', 'Mermaid 확대 보기');
+  dialog.setAttribute('aria-label', t('Mermaid 확대 보기'));
   const header = document.createElement('div'); header.className = 'mermaid-viewer-bar';
   const title = document.createElement('strong'); title.textContent = 'Mermaid';
-  const percent = document.createElement('output'); percent.setAttribute('aria-label', '확대율');
+  const percent = document.createElement('output'); percent.setAttribute('aria-label', t('확대율'));
   const viewport = document.createElement('div'); viewport.className = 'mermaid-viewport'; viewport.tabIndex = 0;
-  viewport.setAttribute('aria-label', '다이어그램 스크롤 영역');
+  viewport.setAttribute('aria-label', t('다이어그램 스크롤 영역'));
   const canvas = document.createElement('div'); canvas.className = 'mermaid-canvas';
   const shadow = canvas.attachShadow({ mode: 'open' }); const svg = diagramSvg(diagram); shadow.append(svg);
   viewport.append(canvas);
@@ -24,9 +25,9 @@ export function showDiagramViewer(diagram: Diagram, trigger: HTMLElement) {
     const el = document.createElement('button'); el.type = 'button'; el.textContent = label; el.onclick = action; header.append(el); return el;
   }
   header.append(title);
-  button('축소', () => setZoom(zoom - 0.25)); header.append(percent);
-  button('확대', () => setZoom(zoom + 0.25)); button('폭 맞춤', () => setZoom(1, true)); button('100%', () => setZoom(1));
-  const close = button('닫기', () => dialog.close());
+  button(t('축소'), () => setZoom(zoom - 0.25)); header.append(percent);
+  button(t('확대'), () => setZoom(zoom + 0.25)); button(t('폭 맞춤'), () => setZoom(1, true)); button('100%', () => setZoom(1));
+  const close = button(t('닫기'), () => dialog.close());
   dialog.append(header, viewport); document.body.append(dialog);
   const resize = new ResizeObserver(() => { if (fit) setZoom(1, true); }); resize.observe(viewport);
   let closed = false;

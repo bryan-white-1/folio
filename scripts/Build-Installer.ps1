@@ -4,7 +4,11 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $payload = (Resolve-Path -LiteralPath $AppDirectory).Path
 $cacheDirectory = Join-Path $projectRoot '.tools\installer'
 New-Item -ItemType Directory -Path $cacheDirectory -Force | Out-Null
-foreach ($relativePath in @('Folio.exe','Folio.dll','Folio.pri','App.xbf','Assets\Folio.ico','Web\index.html')) {
+$nativeBuildPath = Join-Path $payload 'folio-build.json'
+$nativeBuild = if (Test-Path -LiteralPath $nativeBuildPath) { Get-Content -LiteralPath $nativeBuildPath -Raw | ConvertFrom-Json } else { $null }
+$required = @('Folio.exe','Assets\Folio.ico','Web\index.html')
+if ($nativeBuild.host -eq 'native') { $required += @('WebView2Loader.dll','locales\en.json','examples\en\formatting.md','examples\ko\formatting.md') } else { $required += @('Folio.dll','Folio.pri','App.xbf') }
+foreach ($relativePath in $required) {
     if (!(Test-Path -LiteralPath (Join-Path $payload $relativePath))) { throw "Incomplete publish directory: $relativePath" }
 }
 function Assert-Publisher([string]$Path, [string]$Publisher) {
@@ -36,15 +40,16 @@ $runtimeBytes = (Get-Item -LiteralPath $runtime).Length
 if ($offline -and $runtimeBytes -lt 50MB) { throw 'Expected a full standalone WebView2 runtime, not an online bootstrapper.' }
 if (!$offline -and ($runtimeBytes -lt 100KB -or $runtimeBytes -gt 10MB)) { throw 'Expected the small WebView2 bootstrapper.' }
 $projectXml = [xml](Get-Content -LiteralPath (Join-Path $projectRoot 'src\Folio\Folio.csproj') -Raw)
-$appVersion = [string]$projectXml.Project.PropertyGroup.Version
-$payloadVersion = [version](Get-Item -LiteralPath (Join-Path $payload 'Folio.dll')).VersionInfo.FileVersion
+$appVersion = if ($nativeBuild.host -eq 'native') { [string]$nativeBuild.version } else { [string]$projectXml.Project.PropertyGroup.Version }
+$versionFile = if ($nativeBuild.host -eq 'native') { 'Folio.exe' } else { 'Folio.dll' }
+$payloadVersion = [version](Get-Item -LiteralPath (Join-Path $payload $versionFile)).VersionInfo.FileVersion
 if ($payloadVersion.ToString(3) -ne $appVersion) { throw "Payload version $payloadVersion does not match installer version $appVersion. Publish the current application first." }
 $outputDirectory = Join-Path $projectRoot 'artifacts'
 $suffix = if ($offline) { '' } else { '-online' }
 $installerPath = Join-Path $outputDirectory "Folio-Setup-$appVersion-win-x64$suffix.exe"
 $stageDirectory = Join-Path $cacheDirectory ('setup-stage-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $stageDirectory -Force | Out-Null
-& $compiler '/Qp' "/DAppVersion=$appVersion" "/DPayloadDir=$payload" "/DRuntimeInstaller=$runtime" "/DOfflineRuntime=$([int]$offline)" "/DOutputPath=$stageDirectory" (Join-Path $projectRoot 'installer\Folio.iss')
+& $compiler '/Qp' "/DAppVersion=$appVersion" "/DPayloadDir=$payload" "/DRuntimeInstaller=$runtime" "/DOfflineRuntime=$([int]$offline)" "/DNativeHost=$([int]($nativeBuild.host -eq 'native'))" "/DOutputPath=$stageDirectory" (Join-Path $projectRoot 'installer\Folio.iss')
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed: $LASTEXITCODE" }
 $stagedInstaller = Join-Path $stageDirectory ([IO.Path]::GetFileName($installerPath))
 if (!(Test-Path -LiteralPath $stagedInstaller)) { throw "Compiler did not produce the expected $RuntimeMode installer. Previous releases were preserved." }
@@ -62,6 +67,7 @@ $hash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash
 $manifest = [ordered]@{
     generatedAt = [DateTimeOffset]::Now.ToString('o')
     version = $appVersion
+    host = if ($nativeBuild.host -eq 'native') { 'native' } else { 'winui' }
     runtimeMode = $RuntimeMode
     installer = [IO.Path]::GetFileName($installerPath)
     sha256 = $hash
@@ -72,7 +78,7 @@ $manifest = [ordered]@{
     payloadFiles = @(
         foreach ($file in Get-ChildItem -LiteralPath $payload -File -Recurse) {
             $relative = [IO.Path]::GetRelativePath($payload, $file.FullName)
-            if ($relative -in @('Folio.exe','Folio.dll','Folio.pri','App.xbf','Assets\Folio.ico') -or $relative.StartsWith('Web\') -or $relative.StartsWith('examples\')) {
+            if ($relative -in @('Folio.exe','Folio.dll','Folio.pri','App.xbf','Assets\Folio.ico','WebView2Loader.dll','folio-build.json') -or $relative.StartsWith('Web\') -or $relative.StartsWith('examples\') -or $relative.StartsWith('locales\')) {
                 @{ path = $relative; sha256 = (Get-FileHash -LiteralPath $file.FullName).Hash }
             }
         }

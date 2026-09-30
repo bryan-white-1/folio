@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import DOMPurify from 'dompurify';
 import { DOMParser, DOMSerializer, type Node, type Schema } from '@milkdown/kit/prose/model';
 import { Plugin, TextSelection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
@@ -7,7 +8,7 @@ import { tableCommand, tableContext } from './table-commands';
 
 type Grid = { rows: Node[][] };
 const MAX_CELLS = 50_000, MAX_COLS = 256, MAX_TEXT = 10_000_000;
-const limitMessage = '붙여넣는 표는 최대 256열·50,000셀·10MB까지 지원합니다.';
+const limitMessage = t('붙여넣는 표는 최대 256열·50,000셀·10MB까지 지원합니다.');
 
 // Excel quotes cells containing tabs, line breaks or quotes. A final row separator
 // terminates the last row; it does not represent an extra empty row.
@@ -194,7 +195,7 @@ export function tableClipboard(commit: (view: EditorView, tr: Transaction) => vo
         if (tr) commit(view, tr);
         return true;
       } catch (error) {
-        event.preventDefault(); notify(error instanceof Error ? error.message : '표를 붙여넣지 못했습니다.'); return true;
+        event.preventDefault(); notify(error instanceof Error ? error.message : t('표를 붙여넣지 못했습니다.')); return true;
       }
     },
   } } });

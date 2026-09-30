@@ -1,4 +1,5 @@
-export const welcome = `# 생각이 문서가 되는 곳
+import { language } from './i18n';
+const korean = `# 생각이 문서가 되는 곳
 
 Folio에 오신 것을 환영합니다. **글에 집중하고, 구조는 한눈에.**
 
@@ -43,3 +44,51 @@ Markdown 문법을 직접 편집하고 싶다면 **원문**으로 전환하세�
 
 이제 새로운 문서를 열고, 다음 생각을 이어가세요.
 `;
+
+const english = `# Where thoughts become documents
+
+Welcome to Folio. **Focus on your words. See the structure at a glance.**
+
+Navigate with the outline on the left. Switch between **Rendered / Source** above. This starter document is yours to edit.
+
+## Two views, one document
+
+### Write in rendered view
+
+Click any sentence to edit it. Select text and use the toolbar to apply bold, italic or a link.
+
+> Every good document starts with a small idea.
+
+### Refine the source
+
+Switch to **Source** to edit Markdown directly. Your changes and the outline stay in sync.
+
+\`\`\`markdown
+# Document title
+## A new idea
+- First task
+- Second task
+\`\`\`
+
+## Today's checklist
+
+- [x] Open your writing space
+- [ ] Write your first heading
+- [ ] Save a Markdown file
+
+## Quick reference
+
+| Action | Shortcut |
+| --- | --- |
+| Open a file | Ctrl + O |
+| Save | Ctrl + S |
+| Switch editor mode | Ctrl + Shift + M |
+| Undo | Ctrl + Z |
+| Find | Ctrl + F |
+
+---
+
+Open a new document and keep your thoughts moving.
+`;
+
+export const welcome = language === 'en' ? english : korean;

@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { $nodeSchema, $remark } from '@milkdown/kit/utils';
 import remarkFrontmatter from 'remark-frontmatter';
 import { readLayoutMetadata } from './layout-metadata';
@@ -29,7 +30,7 @@ const attrs = { raw: { default: '' } };
 export const rawInline = $nodeSchema('folio_raw_inline', () => ({
   inline: true, group: 'inline', atom: true, attrs,
   parseDOM: [{ tag: 'span[data-folio-raw]', getAttrs: dom => ({ raw: dom.getAttribute('data-folio-raw') ?? '' }) }],
-  toDOM: node => /^<br\s*\/?\s*>$/i.test(node.attrs.raw) ? ['br', { 'data-folio-raw': node.attrs.raw }] : ['span', { 'data-folio-raw': node.attrs.raw, class: 'raw-inline', title: '원문을 보존한 구간' }, node.attrs.raw],
+  toDOM: node => /^<br\s*\/?\s*>$/i.test(node.attrs.raw) ? ['br', { 'data-folio-raw': node.attrs.raw }] : ['span', { 'data-folio-raw': node.attrs.raw, class: 'raw-inline', title: t('원문을 보존한 구간') }, node.attrs.raw],
   parseMarkdown: { match: node => node.type === 'folioRawInline', runner: (state, node, type) => { state.addNode(type, { raw: node.value }); } },
   toMarkdown: { match: node => node.type.name === 'folio_raw_inline', runner: (state, node) => { state.addNode('html', undefined, node.attrs.raw); } },
 }));
@@ -37,8 +38,8 @@ export const rawBlock = $nodeSchema('folio_raw_block', () => ({
   group: 'block', atom: true, attrs,
   parseDOM: [{ tag: 'div[data-folio-raw]', getAttrs: dom => ({ raw: dom.getAttribute('data-folio-raw') ?? '' }) }],
   toDOM: node => /^<br\s*\/?\s*>$/i.test(node.attrs.raw.trim())
-    ? ['div', { 'data-folio-raw': node.attrs.raw, class: 'raw-break', 'aria-label': '빈 줄' }]
-    : ['div', { 'data-folio-raw': node.attrs.raw, class: 'raw-block' }, ['span', { class: 'raw-label' }, '원문 보존 구간'], ['pre', {}, node.attrs.raw]],
+    ? ['div', { 'data-folio-raw': node.attrs.raw, class: 'raw-break', 'aria-label': t('빈 줄') }]
+    : ['div', { 'data-folio-raw': node.attrs.raw, class: 'raw-block' }, ['span', { class: 'raw-label' }, t('원문 보존 구간')], ['pre', {}, node.attrs.raw]],
   parseMarkdown: { match: node => node.type === 'folioRawBlock', runner: (state, node, type) => { state.addNode(type, { raw: node.value }); } },
   toMarkdown: { match: node => node.type.name === 'folio_raw_block', runner: (state, node) => { state.addNode('html', undefined, node.attrs.raw); } },
 }));

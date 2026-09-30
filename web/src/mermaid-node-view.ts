@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { NodeView } from '@milkdown/kit/prose/view';
 import { NodeSelection } from '@milkdown/kit/prose/state';
@@ -18,13 +19,13 @@ export function codeBlockView(initial: ProseNode, view: EditorView, getPos: () =
     } };
   }
   const dom = document.createElement('div'); dom.className = 'mermaid-card'; dom.contentEditable = 'false';
-  dom.setAttribute('role', 'group'); dom.setAttribute('aria-label', 'Mermaid 다이어그램 블록');
+  dom.setAttribute('role', 'group'); dom.setAttribute('aria-label', t('Mermaid 다이어그램 블록'));
   const bar = document.createElement('div'); bar.className = 'mermaid-card-bar';
   const badge = document.createElement('span'); badge.className = 'mermaid-badge'; badge.textContent = '◇ Mermaid';
   const status = document.createElement('span'); status.className = 'mermaid-status'; status.setAttribute('role', 'status');
-  const editButton = document.createElement('button'); editButton.type = 'button'; editButton.textContent = '원문 수정';
+  const editButton = document.createElement('button'); editButton.type = 'button'; editButton.textContent = t('원문 수정');
   editButton.onclick = () => { const pos = getPos(); if (pos !== undefined) void edit(pos); };
-  const expand = document.createElement('button'); expand.type = 'button'; expand.textContent = '확대'; expand.disabled = true;
+  const expand = document.createElement('button'); expand.type = 'button'; expand.textContent = t('확대'); expand.disabled = true;
   const body = document.createElement('div'); body.className = 'mermaid-diagram';
   const shadow = body.attachShadow({ mode: 'open' });
   const fallback = document.createElement('pre'); fallback.className = 'mermaid-fallback'; fallback.hidden = true;
@@ -33,13 +34,13 @@ export function codeBlockView(initial: ProseNode, view: EditorView, getPos: () =
   let diagram: Diagram | undefined;
   expand.onclick = () => { if (diagram) showDiagramViewer(diagram, expand); };
   function state(kind: string, message: string) { dom.dataset.state = kind; status.textContent = message; }
-  state('waiting', '표시 대기');
+  state('waiting', t('표시 대기'));
   async function render() {
     if (!visible || destroyed || !pending) return;
     pending = false; const version = ++generation; const text = node.textContent;
     const current = () => !destroyed && version === generation;
     diagram = undefined; expand.disabled = true; fallback.hidden = true;
-    state('rendering', '렌더링 중…');
+    state('rendering', t('렌더링 중…'));
     try {
       const result = await renderDiagram(text, diagramTheme(), current);
       if (!current()) return;

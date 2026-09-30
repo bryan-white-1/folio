@@ -1,6 +1,17 @@
 param([string]$AppDirectory)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+if (!$AppDirectory) {
+    $latestNative = Get-ChildItem -LiteralPath (Join-Path $projectRoot 'artifacts') -Directory -Filter 'Folio-*-native-win-x64*' |
+        Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'folio-build.json') } |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($latestNative) { $AppDirectory = $latestNative.FullName }
+}
+if ($AppDirectory -and (Test-Path -LiteralPath (Join-Path $AppDirectory 'folio-build.json'))) {
+    & node (Join-Path $projectRoot 'web/tests/native-host.mjs') $AppDirectory
+    if ($LASTEXITCODE -ne 0) { throw 'Native host integration checks failed.' }
+    return
+}
 $projectXml = [xml](Get-Content -LiteralPath (Join-Path $projectRoot 'src\Folio\Folio.csproj') -Raw)
 $executable = if ($AppDirectory) { Join-Path $AppDirectory 'Folio.exe' } else { Join-Path $projectRoot "artifacts\Folio-$($projectXml.Project.PropertyGroup.Version)-win-x64\Folio.exe" }
 if (!(Test-Path -LiteralPath $executable)) { throw 'Run build.ps1 first.' }

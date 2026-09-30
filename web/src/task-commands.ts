@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -7,7 +8,7 @@ import { wrapRangeInList, splitListItem } from '@milkdown/kit/prose/schema-list'
 import type { Node } from '@milkdown/kit/prose/model';
 
 export interface TaskStatus { enabled: boolean; active: boolean; reason: string }
-const reason = '일반 문단·목록을 선택하세요. 표·제목·코드·보존 구간은 변환할 수 없습니다.';
+const reason = t('일반 문단·목록을 선택하세요. 표·제목·코드·보존 구간은 변환할 수 없습니다.');
 const status = (enabled: boolean, active: boolean): TaskStatus => ({ enabled, active, reason: enabled ? '' : reason });
 type Ast = { type: string; children?: Ast[]; position?: { start: { offset: number }; end: { offset: number } } };
 type SourceTarget = { from: number; to: number; active: boolean; list: boolean };

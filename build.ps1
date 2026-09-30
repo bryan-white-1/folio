@@ -1,5 +1,9 @@
-param([switch]$SkipTests, [switch]$Zip, [switch]$Installer, [ValidateSet('Online','Offline')][string]$RuntimeMode = 'Online')
+param([switch]$SkipTests, [switch]$Zip, [switch]$Installer, [ValidateSet('Online','Offline')][string]$RuntimeMode = 'Online', [ValidateSet('Native','Legacy')][string]$HostMode = 'Native')
 $ErrorActionPreference = 'Stop'
+if ($HostMode -eq 'Native') {
+    & (Join-Path $PSScriptRoot 'scripts/Build-Native.ps1') -SkipTests:$SkipTests -Zip:$Zip -Installer:$Installer -RuntimeMode $RuntimeMode
+    return
+}
 $projectRoot = $PSScriptRoot
 $projectXml = [xml](Get-Content -LiteralPath (Join-Path $projectRoot 'src\Folio\Folio.csproj') -Raw)
 $appVersion = [string]$projectXml.Project.PropertyGroup.Version

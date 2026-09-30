@@ -1,3 +1,4 @@
+import { t, tr, uiHtml } from './i18n';
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { HeadingStatus } from './heading-commands';
 import { tableContext, tableActionReason, validTableSize, type TableAction } from './table-commands';
@@ -15,10 +16,10 @@ export interface FormatActions<T> {
   tableCellElement(): HTMLElement | null;
 }
 const labels: Record<TableAction, string> = {
-  'row-before': '위에 행 추가', 'row-after': '아래에 행 추가', 'row-delete': '행 삭제',
-  'col-before': '왼쪽에 열 추가', 'col-after': '오른쪽에 열 추가', 'col-delete': '열 삭제',
-  'select-row': '행 선택', 'select-col': '열 선택', 'select-table': '표 전체 선택',
-  clear: '내용 지우기', delete: '표 삭제', left: '왼쪽 정렬', center: '가운데 정렬', right: '오른쪽 정렬',
+  'row-before': t('위에 행 추가'), 'row-after': t('아래에 행 추가'), 'row-delete': t('행 삭제'),
+  'col-before': t('왼쪽에 열 추가'), 'col-after': t('오른쪽에 열 추가'), 'col-delete': t('열 삭제'),
+  'select-row': t('행 선택'), 'select-col': t('열 선택'), 'select-table': t('표 전체 선택'),
+  clear: t('내용 지우기'), delete: t('표 삭제'), left: t('왼쪽 정렬'), center: t('가운데 정렬'), right: t('오른쪽 정렬'),
 };
 
 export class FormatToolbar<T> {
@@ -61,10 +62,10 @@ export class FormatToolbar<T> {
   update() {
     const { heading, canInsert } = this.actions.status();
     this.headingButton.disabled = !heading.enabled;
-    this.headingButton.title = heading.reason || '본문·제목 선택 (Ctrl+Alt+0–6)';
-    this.headingButton.querySelector('span')!.textContent = !heading.enabled ? '서식' : heading.level === null ? '혼합' : heading.level ? `제목 ${heading.level}` : '본문';
+    this.headingButton.title = heading.reason || t('본문·제목 선택 (Ctrl+Alt+0–6)');
+    this.headingButton.querySelector('span')!.textContent = !heading.enabled ? t('서식') : heading.level === null ? t('혼합') : heading.level ? tr`제목 ${heading.level}` : t('본문');
     this.insertButton.disabled = !canInsert;
-    this.insertButton.title = canInsert ? '표 삽입 · 행과 열 선택' : '표 밖의 문단에서 표를 삽입하세요';
+    this.insertButton.title = canInsert ? t('표 삽입 · 행과 열 선택') : t('표 밖의 문단에서 표를 삽입하세요');
     this.schedulePosition();
   }
   private schedulePosition() {
@@ -94,24 +95,24 @@ export class FormatToolbar<T> {
     this.positionPoint = point ?? null; this.target = this.actions.capture();
     this.panel.replaceChildren(); this.panel.hidden = false;
     this.panel.setAttribute('role', kind === 'insert' ? 'dialog' : 'menu');
-    this.panel.setAttribute('aria-label', kind === 'heading' ? '본문·제목 선택' : kind === 'insert' ? '표 크기 선택' : '표 편집 메뉴');
+    this.panel.setAttribute('aria-label', kind === 'heading' ? t('본문·제목 선택') : kind === 'insert' ? t('표 크기 선택') : t('표 편집 메뉴'));
     this.panel.classList.toggle('insert-popover', kind === 'insert');
     if (kind === 'heading') {
       for (let level = 0; level <= 6; level++) {
-        const b = this.item(level ? `제목 ${level}` : '본문', () => {
+        const b = this.item(level ? tr`제목 ${level}` : t('본문'), () => {
           const target = this.target; this.close(); if (target) void this.actions.heading(level, target);
         });
         b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', String(status.heading.level === level));
         b.dataset.level = String(level);
-        b.innerHTML = `<span class="heading-tag">${level ? 'H' + level : '¶'}</span><span class="heading-sample">${level ? '제목 ' + level : '본문'}</span><kbd>Ctrl+Alt+${level}</kbd><span class="menu-check">${status.heading.level === level ? '✓' : ''}</span>`;
+        b.innerHTML = `<span class="heading-tag">${level ? 'H' + level : '¶'}</span><span class="heading-sample">${level ? t('제목 ') + level : t('본문')}</span><kbd>Ctrl+Alt+${level}</kbd><span class="menu-check">${status.heading.level === level ? '✓' : ''}</span>`;
       }
     } else if (kind === 'insert') this.insertionForm();
     else {
-      const copy = this.item('복사', () => {
+      const copy = this.item(t('복사'), () => {
         const target = this.target; this.close(); if (target) void this.actions.copy(target);
       });
-      copy.dataset.action = 'copy'; copy.title = '선택한 셀 복사 (Ctrl+C)';
-      copy.innerHTML = '<span>복사</span><kbd>Ctrl+C</kbd>';
+      copy.dataset.action = 'copy'; copy.title = t('선택한 셀 복사 (Ctrl+C)');
+      copy.innerHTML = uiHtml('<span>복사</span><kbd>Ctrl+C</kbd>');
       this.panel.append(Object.assign(document.createElement('hr'), { className: 'menu-divider' }));
       const groups: TableAction[][] = [['row-before', 'row-after', 'col-before', 'col-after'], ['left', 'center', 'right'], ['select-row', 'select-col', 'select-table', 'clear'], ['row-delete', 'col-delete', 'delete']];
       const alignment = status.table && tableContext(status.table)?.alignment;
@@ -120,7 +121,7 @@ export class FormatToolbar<T> {
         group.forEach(action => {
           const b = this.item(labels[action], () => void this.execute(action));
           b.dataset.action = action;
-          const reason = status.table ? tableActionReason(status.table, action) : '표 셀을 선택하세요';
+          const reason = status.table ? tableActionReason(status.table, action) : t('표 셀을 선택하세요');
           b.disabled = !!reason; b.title = reason || labels[action];
           if (['left', 'center', 'right'].includes(action)) {
             b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', String(action === alignment));
@@ -128,7 +129,7 @@ export class FormatToolbar<T> {
           if (action.includes('delete')) b.classList.add('danger');
         });
       });
-      const hint = document.createElement('p'); hint.className = 'menu-hint'; hint.textContent = 'Tab 셀 이동 · 마지막 셀에서 행 추가 · Enter 표 밖으로'; this.panel.append(hint);
+      const hint = document.createElement('p'); hint.className = 'menu-hint'; hint.textContent = t('Tab 셀 이동 · 마지막 셀에서 행 추가 · Enter 표 밖으로'); this.panel.append(hint);
     }
     this.position();
     (this.panel.querySelector<HTMLElement>(kind === 'insert' ? 'input' : '[aria-checked="true"]') ?? this.panel.querySelector<HTMLElement>('button:not(:disabled),input') ?? this.panel).focus();
@@ -142,15 +143,15 @@ export class FormatToolbar<T> {
     this.close(); await this.actions.table(action, target);
   }
   private insertionForm() {
-    const title = document.createElement('div'); title.className = 'popover-title'; title.textContent = '표 삽입'; this.panel.append(title);
+    const title = document.createElement('div'); title.className = 'popover-title'; title.textContent = t('표 삽입'); this.panel.append(title);
     const preview = document.createElement('p'); preview.className = 'grid-preview'; this.panel.append(preview);
-    const grid = document.createElement('div'); grid.className = 'table-size-grid'; grid.setAttribute('role', 'group'); grid.setAttribute('aria-label', '빠른 표 크기'); this.panel.append(grid);
+    const grid = document.createElement('div'); grid.className = 'table-size-grid'; grid.setAttribute('role', 'group'); grid.setAttribute('aria-label', t('빠른 표 크기')); this.panel.append(grid);
     const form = document.createElement('form');
-    form.innerHTML = '<div class="table-size-fields"><label>행 <small>머리행 포함</small><input name="rows" aria-label="표 행 수" type="number" min="2" max="100" step="1" value="3" required></label><label>열<input name="cols" aria-label="표 열 수" type="number" min="1" max="50" step="1" value="2" required></label></div><p class="menu-hint">첫 행은 머리행입니다. 2–100행 · 1–50열</p><button class="primary insert-submit" type="submit">표 만들기</button>';
+    form.innerHTML = uiHtml('<div class="table-size-fields"><label>행 <small>머리행 포함</small><input name="rows" aria-label="표 행 수" type="number" min="2" max="100" step="1" value="3" required></label><label>열<input name="cols" aria-label="표 열 수" type="number" min="1" max="50" step="1" value="2" required></label></div><p class="menu-hint">첫 행은 머리행입니다. 2–100행 · 1–50열</p><button class="primary insert-submit" type="submit">표 만들기</button>');
     this.panel.append(form);
     const rows = form.elements.namedItem('rows') as HTMLInputElement, cols = form.elements.namedItem('cols') as HTMLInputElement;
     const paint = (r: number, c: number) => {
-      preview.textContent = `${r}행 × ${c}열`;
+      preview.textContent = tr`${r}행 × ${c}열`;
       grid.querySelectorAll<HTMLElement>('button').forEach(b => b.classList.toggle('active', Number(b.dataset.row) <= r && Number(b.dataset.col) <= c));
     };
     const apply = (r: number, c: number) => {
@@ -159,7 +160,7 @@ export class FormatToolbar<T> {
     };
     for (let r = 1; r <= 8; r++) for (let c = 1; c <= 8; c++) {
       const b = document.createElement('button'); b.type = 'button'; b.dataset.row = String(r); b.dataset.col = String(c);
-      b.setAttribute('aria-label', `${Math.max(2, r)}행 ${c}열 표 삽입`); b.tabIndex = -1;
+      b.setAttribute('aria-label', tr`${Math.max(2, r)}행 ${c}열 표 삽입`); b.tabIndex = -1;
       b.onmouseenter = () => paint(Math.max(2, r), c); b.onclick = () => apply(Math.max(2, r), c); grid.append(b);
     }
     grid.onmouseleave = () => paint(Number(rows.value), Number(cols.value));

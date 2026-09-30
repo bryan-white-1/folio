@@ -20,6 +20,9 @@
 #ifndef OutputPath
   #define OutputPath "..\artifacts"
 #endif
+#ifndef NativeHost
+  #define NativeHost "0"
+#endif
 
 [Setup]
 AppId={{A5B41CCB-9B45-467E-9748-621958D995B9}
@@ -77,8 +80,10 @@ korean.DesktopShortcut=바탕 화면에 바로가기 만들기
 korean.LaunchFolio=Folio 실행
 korean.AssociateFiles=Markdown 문서를 Folio와 연결 (.md, .markdown)
 korean.DefaultApps=Markdown 기본 앱 설정 열기 (Folio 선택)
+korean.EditWithFolio=Folio에서 편집
 english.AssociateFiles=Register Folio for Markdown documents (.md, .markdown)
 english.DefaultApps=Choose Folio as the default Markdown app
+english.EditWithFolio=Edit with Folio
 korean.CloseFolio=설치 대상 Folio가 실행 중입니다. 문서를 저장하고 Folio를 종료한 뒤 다시 시도해주세요.
 korean.RuntimeInstalling=문서 편집에 필요한 WebView2를 설치하고 있습니다…
 korean.RuntimeFailed=WebView2 설치를 완료하지 못했습니다. %1
@@ -112,15 +117,27 @@ Root: HKCU; Subkey: "Software\Folio\Capabilities"; ValueType: string; ValueName:
 Root: HKCU; Subkey: "Software\Folio\Capabilities\FileAssociations"; ValueType: string; ValueName: ".md"; ValueData: "Folio.Markdown"; Tasks: associatefiles
 Root: HKCU; Subkey: "Software\Folio\Capabilities\FileAssociations"; ValueType: string; ValueName: ".markdown"; ValueData: "Folio.Markdown"; Tasks: associatefiles
 Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Folio"; ValueData: "Software\Folio\Capabilities"; Tasks: associatefiles; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\Folio"; ValueType: string; ValueData: "Folio에서 편집"; Tasks: associatefiles; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\Folio"; ValueType: string; ValueData: "{cm:EditWithFolio}"; Tasks: associatefiles; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\Folio\command"; ValueType: string; ValueData: """{app}\Folio.exe"" ""%1"""; Tasks: associatefiles
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.markdown\shell\Folio"; ValueType: string; ValueData: "Folio에서 편집"; Tasks: associatefiles; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.markdown\shell\Folio"; ValueType: string; ValueData: "{cm:EditWithFolio}"; Tasks: associatefiles; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.markdown\shell\Folio\command"; ValueType: string; ValueData: """{app}\Folio.exe"" ""%1"""; Tasks: associatefiles
 
 [Files]
+#if NativeHost == "1"
+Source: "legacy-0.1.11-files.txt"; Flags: dontcopy
+#endif
 ; Extract prerequisite before the solid-compressed application payload.
 Source: "{#RuntimeInstaller}"; Flags: dontcopy nocompression
+#if NativeHost == "1"
+Source: "{#PayloadDir}\*"; DestDir: "{app}"; Excludes: "*.pdb,*.ps1,*.log,*.WebView2\*,examples\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PayloadDir}\examples\ko\*"; DestDir: "{app}\examples\ko"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PayloadDir}\examples\en\*"; DestDir: "{app}\examples\en"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Preserve previously edited examples; the app menu always opens the selected language folder.
+Source: "{#PayloadDir}\examples\ko\*"; DestDir: "{app}\examples"; Languages: korean; Flags: onlyifdoesntexist recursesubdirs createallsubdirs
+Source: "{#PayloadDir}\examples\en\*"; DestDir: "{app}\examples"; Languages: english; Flags: onlyifdoesntexist recursesubdirs createallsubdirs
+#else
 Source: "{#PayloadDir}\*"; DestDir: "{app}"; Excludes: "*.pdb,*.ps1,*.log,*.WebView2\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
 
 [Icons]
 Name: "{group}\Folio"; Filename: "{app}\Folio.exe"; WorkingDir: "{app}"; Comment: "Folio Markdown Editor"; AppUserModelID: "Folio.MarkdownEditor"
@@ -130,6 +147,11 @@ Name: "{autodesktop}\Folio"; Filename: "{app}\Folio.exe"; WorkingDir: "{app}"; T
 ; Retire the old script uninstaller when upgrading a script-based installation.
 Type: files; Name: "{app}\Install-Folio.ps1"
 Type: files; Name: "{app}\Uninstall-Folio.ps1"
+
+[UninstallDelete]
+#if NativeHost == "1"
+Type: files; Name: "{app}\install-language.txt"
+#endif
 
 [Run]
 Filename: "ms-settings:defaultapps?registeredAppUser=Folio"; Description: "{cm:DefaultApps}"; Tasks: associatefiles; Flags: shellexec nowait postinstall skipifsilent
@@ -215,6 +237,42 @@ begin
   if not Result then
     SuppressibleMsgBox(CustomMessage('CloseFolio'), mbError, MB_OK, IDOK);
 end;
+
+#if NativeHost == "1"
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Lines: TArrayOfString;
+  Index, Separator: Integer;
+  RelativePath, ExpectedHash, Target: String;
+begin
+  if CurStep = ssPostInstall then begin
+    if not SaveStringToFile(ExpandConstant('{app}\install-language.txt'), ActiveLanguage, False) then
+      RaiseException('Could not save the installation language.');
+  end;
+  if CurStep <> ssInstall then Exit;
+  ExtractTemporaryFile('legacy-0.1.11-files.txt');
+  if not LoadStringsFromFile(ExpandConstant('{tmp}\legacy-0.1.11-files.txt'), Lines) then Exit;
+  for Index := 0 to GetArrayLength(Lines) - 1 do begin
+    Separator := Pos('|', Lines[Index]);
+    if Separator > 1 then begin
+      RelativePath := Copy(Lines[Index], 1, Separator - 1);
+      ExpectedHash := Copy(Lines[Index], Separator + 1, 64);
+      if (Pos('..', RelativePath) = 0) and (Pos(':', RelativePath) = 0) and
+         (Copy(RelativePath, 1, 1) <> '\') and (Copy(RelativePath, 1, 1) <> '/') then begin
+        Target := ExpandConstant('{app}\') + RelativePath;
+        if FileExists(Target) then begin
+          // Remove only byte-identical files from the known legacy release.
+          // Changed files and user-created documents are never cleanup targets.
+          if CompareText(GetSHA256OfFile(Target), ExpectedHash) = 0 then begin
+            if not DeleteFile(Target) then
+              RaiseException('Could not retire legacy runtime: ' + RelativePath);
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+#endif
 
 // Inno removes only its recorded application files.
 // User Markdown files, AppData settings/recovery, and shared WebView2 remain intact.

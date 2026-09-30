@@ -1,3 +1,4 @@
+import { t, tr } from './i18n';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
@@ -89,7 +90,7 @@ export class RenderedSearch {
   update() {
     const { matches, index, query } = renderedSearchKey.getState(this.view().state)!;
     this.count.textContent = `${index + 1} / ${matches.length}`;
-    this.count.setAttribute('aria-label', matches.length ? `전체 ${matches.length}개 중 ${index + 1}번째 일치` : query ? '일치하는 결과 없음' : '검색어를 입력하세요');
+    this.count.setAttribute('aria-label', matches.length ? tr`전체 ${matches.length}개 중 ${index + 1}번째 일치` : query ? t('일치하는 결과 없음') : t('검색어를 입력하세요'));
     this.panel.classList.toggle('no-results', !!query && !matches.length);
     this.previous.disabled = this.next.disabled = !matches.length;
   }

@@ -1,4 +1,64 @@
-갱신: 2026-09-18 16:01:36 KST (UTC+09:00)
+갱신: 2026-09-30 09:50 KST (UTC+09:00)
+
+Folio 0.2.2 · GitHub 공개 패키지 검증 · 2026-09-30
+
+| 검증 | 결과 |
+|---|---|
+| 전체 빌드 | `FOLIO_TEST_PRODUCTION=1 ./build.ps1 -Installer`: TypeScript/Vite·C++ Release·설치 EXE 생성 통과. 기존 DOMPurify 중복 import·대형 청크 안내 유지 |
+| 웹 회귀 | 단위 33개·production UI 70개 모두 통과; 실패·건너뜀 없음 |
+| Native 저장·앱 | C++ 저장 계층 통과; 실제 WebView2 11개 통과. BOM/개행·저장 ACK·복구·외부 충돌·설정·클립보드·이미지·단일 인스턴스·최근 문서·Mermaid |
+| 설치·업그레이드 | 별도 QA AppId·한글 경로에서 0.1.11 설치→0.2.2 업그레이드→재설치→설치본 통합→제거, 수명주기 7개 검사 통과. 사용자 문서·실사용 Folio 등록 보존 |
+| 한영 UI | 설치본 영어 6개·한국어 초기화 1개 통과. 앱 언어 우선·복구·영문 예제·오류·흰색 목차 확인 |
+| 공개 자료 | 영문 README·릴리스 노트·현재 영문 UI 스크린샷 5장, 웹 패키지 버전 0.2.2. README 이미지·문서 링크를 Native 배포 폴더에도 동봉 |
+
+근거: `web/test-results/.last-run.json`, `.tools/native-qa/2026-09-30T00-44-24-489Z/native-host-results.json`, `.tools/native-qa/2026-09-30T00-48-02-153Z/native-host-results.json`, `.tools/native-language-qa/2026-09-30T00-47-17-646Z/results.json`, `.tools/native-language-qa/2026-09-30T00-47-56-380Z/results.json`, `artifacts/native-installer-tests.json`. 빌드 폴더: `artifacts/Folio-0.2.2-native-win-x64-20260930-094356`. 최종 문서 갱신 후 실행 코드·웹 자산을 유지하여 재패키징; 정확한 바이트·해시는 릴리스 자산의 `.json`·`.sha256` 기준. 실사용 설치 교체 없음. 물리 IME·실제 Excel·스크린리더·Windows 10·WebView2 미설치 PC 검증은 기존 제한 유지.
+
+Folio 0.2.2 · 설치 언어 연동·한/영 UI·흰색 목차
+
+| 검증 | 결과 |
+|---|---|
+| 빌드·단위 | TypeScript/Vite·C++ Release 통과. 웹 33개·Native 저장 검사 통과; Language 누락/잘못된 값 기본화·ko/en 보존·저장/재로딩 추가 검증 |
+| production UI | 기존 67개·영문 신규 3개 통과. 신규 2개의 테스트 선택자/초기 revision 비교를 보정한 뒤 영문 3개 재실행 통과 |
+| 설치본 언어 | 영어 6개·한국어 기본 진입 1개 통과: 언어 미지정 초기화, 영어 UI/시작 문서/예제/오류, 흰색 목차, 편집 상태·이력·복구 보존, 명시적 앱 언어 우선·설정 취소 |
+| Native 회귀 | 실제 WebView2 11개 통과: 파일 저장/BOM/충돌·복구·설정·Windows 클립보드·이미지·IPC/한글 경로·최근 문서·Mermaid |
+| 설치 수명주기 | QA AppId·한글 경로에서 영어 설치→한국어 재설치→설치본 통합→제거 6개 검사 통과. 영어 루트 예제 확인, 사용자 문서·실사용 Folio 등록 보존. 이번 실행은 LegacyDirectory 미지정; 실제 0.1.11 업그레이드 근거는 아래 0.2.0 이력 |
+| 시각 검토 | 실제 Native DOM 본문/원문/목차 RGB(255,255,255). 영어 상단/메뉴/설정 확인, UI 반경 0·도구 잘림 0. 실제 DOM/CSSOM과 배포 CSS를 Headless Edge로 렌더링한 미리보기 사용 |
+| 배포 | 0.2.2 실행 폴더·Setup·ZIP. 공유 WebView2 제외 약 8.50MiB/5.58MiB; 0.1.11의 215.43MiB/61.83MiB 대비 약 4.0%/9.0%. 신규 런타임 의존성 없음 |
+
+근거: artifacts/native-installer-tests.json, .tools/native-language-qa/2026-09-29T23-33-14-925Z/results.json·2026-09-29T23-33-53-511Z/results.json, .tools/native-qa/2026-09-29T23-33-57-921Z/native-host-results.json, artifacts/language-ui-preview/inspection.json·light.png·menu.png·settings.png. 최종 패키지 바이트/해시는 Setup 옆 .json·.sha256. 검사 후 문서·탐색기 메뉴의 번역 상수만 갱신하여 최종 재패키징.
+
+제약: Windows 공용 파일 선택창의 시스템 항목은 OS 언어를 따른다. 물리 IME·실제 Excel·타 OS/새 PC·WebView2 미설치 환경은 기존 수동 확인 대상으로 유지. 파일 연결 번역 상수는 설치 스크립트 컴파일 확인; 실사용 레지스트리 변경 없이 QA의 파일 연결 옵션은 해제. 실사용 설치 교체·원격 게시 미수행.
+
+Folio 0.2.1 · 직각 UI·순백색 편집 면
+
+| 검증 | 결과 |
+|---|---|
+| 빌드 | TypeScript/Vite·C++/Win32 Release 통과. 기존 DOMPurify/대형 청크 안내 유지 |
+| 웹 UI 회귀 | 전체 67개 통과. 최종 체크박스·도구 폭 보정 후 관련 9개 재검증 통과: 편집 모드·표 메뉴·검색·좁은 배치·체크 상태/Undo |
+| 실제 Native DOM | 밝음/메뉴/설정/원문/어두움/840px 폭 확인. 렌더링·원문 편집 면 RGB(255,255,255), 목차 RGB(246,247,248), 상단 RGB(250,251,252). 표시 중인 UI 모서리 반경 0, 999px/840px 폭 도구 잘림 0 |
+| 시각 검토 | 직각 로고·버튼·체크박스·목차·메뉴·대화상자·모드 전환, 직선 구분·회색 패널·흰 편집 면·어두운 테마 확인 |
+| 배포 | 0.2.1 EXE·온라인 Setup·ZIP 생성, 웹 자산 대응·설치 파일 SHA-256 검증. 기존 경량 배포 구조 유지 |
+
+증거: `artifacts/square-ui-preview/inspection.json`, 같은 폴더 `light.png`·`dark.png`·`source.png`·`settings.png`·`menu.png`·`narrow.png`. 이 환경의 WebView2 CDP 직접 화면 캡처가 시간 초과되어 실제 앱 DOM·CSSOM·배포 CSS를 Headless Edge에서 렌더링한 UI 미리보기다. 색상/모서리/배치는 실제 WebView2 DOM에서 측정했다. OS 창 외곽·공용 파일 대화상자는 캡처 범위 밖이다.
+
+범위: UI·창 모서리·버전 표기 변경. 저장/IPC/편집 엔진 변경 없음. 설치 수명주기·네이티브 전체 기능 재검증은 이번 UI 수정에서 반복하지 않았으며 아래 0.2.0 이력을 참고한다. 실사용 설치 교체·원격 릴리스 미수행.
+
+Folio 0.2.0 Native · 2-A 호스트 교체 검증
+
+| 검증 | 결과 |
+|---|---|
+| C++ 저장 계층 | JSON/Unicode·잘못된 입력 거부, BOM/혼합 개행 무편집 보존, 수정 개행, 저장 충돌, 설정/최근 문서, 이미지 경로 제한/복사/충돌 검증 통과 |
+| 기존 웹 단위 | 5파일·33개 통과 |
+| 기존 웹 UI | 최종 전체 67개 통과(2 workers, 1.6분). 최초 동시 UI 실행에서 이미지 커서 보존 1개 실패 후 단독·전체 재실행 통과 |
+| 실제 Native/WebView2 | 11개 시나리오 통과: BOM/혼합 개행, 저장 snapshot/revision ACK, 복구 기록, 외부 충돌 취소/덮어쓰기, 설정 미리보기/취소/저장, Windows Unicode/CF_HTML 클립보드, 이미지 가져오기/상대경로/표시, 한글 경로 단일 인스턴스, 최근 문서, 강제 종료 복구, Mermaid |
+| 설치 수명주기 | 별도 QA AppId·한글 경로에서 0.1.11 설치→0.2.0 업그레이드→재설치→설치본 통합→제거 통과. 구버전 CLR/WinUI/ONNX/DirectML 정리, 사용자 문서·기존 Folio 설치 등록 보존 |
+| 실행 의존성 | PE import 확인: Windows API/UCRT만 직접 참조. .NET·WinUI·별도 C++ 런타임 DLL 없음. WebView2 Loader 동봉·공유 WebView2 별도 필요 |
+
+증거: `artifacts/native-installer-tests.json`, 최종 실행 파일 재검증 `.tools/native-qa/2026-09-29T13-21-25-791Z/native-host-results.json`, 같은 폴더 `native-light.png`·`native-dark.png`, `.tools/installer/native-qa-20260929-221047/` 설치 로그. 실제 사용자 Folio는 실행·설치 상태를 유지했고 테스트는 별도 프로필/AppId로 수행했다. 강제 재시작 검사는 이전 WebView2 디버그 포트 잔존 충돌을 피하도록 실행마다 새 포트를 할당한다.
+
+용량(MiB, 공유 WebView2 제외): 기존 0.1.11 폴더 215.43 → 네이티브 8.44(약 96.1% 감소), 온라인 Setup 61.83 → 5.56(약 91.0% 감소). 양쪽 모두 기존의 1/10 이하. 최종 파일별 정확한 바이트·SHA-256은 설치 EXE 옆 `.json`·`.sha256` 참고. C++ EXE 자체는 약 1.22MiB이며 나머지는 기존 웹 편집기·Loader·문서/라이선스다.
+
+범위 제한: 물리 한글 IME·실제 Excel·OS 파일 선택·스크린리더·Windows 10·WebView2 미설치 PC·장시간/대용량 문서는 별도 수동 확인 대상. 새 릴리스 게시·실사용 설치 교체·코드 서명 미수행. 아래는 기존 WinUI 버전 검증 이력이다.
 
 렌더링 찾기·모서리 반경 축소 · Folio 0.1.11
 
