@@ -1,4 +1,4 @@
-Updated: 2026-09-30 09:50 KST (UTC+09:00)
+Updated: 2026-10-19 16:24 KST (UTC+09:00)
 
 # Folio
 
@@ -8,9 +8,9 @@ Edit the document as you read it. Turn Mermaid code into diagrams, navigate by h
 
 **About 6.3 MB for the Windows x64 installer.** No account, server, or subscription is required for local editing.
 
-[Download for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.2/Folio-Setup-0.2.2-win-x64-online.exe) · [Release notes](https://github.com/bryan-white-1/folio/releases/tag/v0.2.2) · [Features](#features) · [Build from source](#build-from-source) · [Apache-2.0](LICENSE)
+[Download for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.3/Folio-Setup-0.2.3-win-x64-online.exe) · [Release notes](https://github.com/bryan-white-1/folio/releases/tag/v0.2.3) · [Features](#features) · [Build from source](#build-from-source) · [Apache-2.0](LICENSE)
 
-**Current release: 0.2.2** — a native Windows host, English and Korean interfaces, and a compact installer. See the [English release notes](RELEASE_NOTES.md) for changes since 0.1.11.
+**Current release: 0.2.3** — refresh attempts preserve your document, unsaved edits and Undo/Redo history; saving and closing stay responsive. Rendered hard line breaks now use two trailing spaces for Markdown compatibility. See the [English release notes](RELEASE_NOTES.md).
 
 ![Folio's English interface with a Markdown heading outline, Mermaid workflow, and editable table](docs/images/folio-overview.png)
 
@@ -72,17 +72,17 @@ Screenshots show the 0.2.2 native app's English interface with sample documents.
 
 Folio uses a **C++/Win32 host and the shared Microsoft WebView2 Runtime**, with Milkdown, CodeMirror, and Mermaid inside the editor. The native package does not bundle .NET or Windows App SDK runtimes.
 
-The `Folio-Setup-0.2.2-win-x64-online.exe` download is **about 6.3 MB**, including the editor, examples, and documentation. Exact bytes and SHA-256 checksums are supplied with the [release assets](https://github.com/bryan-white-1/folio/releases/tag/v0.2.2). A shared WebView2 installation is separate: if it is missing, the online installer downloads it during setup. Local document editing then works offline.
+The `Folio-Setup-0.2.3-win-x64-online.exe` download is **about 6.3 MB**, including the editor, examples, and documentation. Exact bytes and SHA-256 checksums are supplied with the [release assets](https://github.com/bryan-white-1/folio/releases/tag/v0.2.3). A shared WebView2 installation is separate: if it is missing, the online installer downloads it during setup. Local document editing then works offline.
 
 ## Install
 
-1. Download [Folio 0.2.2 for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.2/Folio-Setup-0.2.2-win-x64-online.exe).
+1. Download [Folio 0.2.3 for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.3/Folio-Setup-0.2.3-win-x64-online.exe).
 2. Run the installer and launch **Folio** from the Start menu. Folio installs per user without requiring administrator rights for the app.
-3. Open a Markdown file, or explore **More → Example documents** in 0.2.2.
+3. Open a Markdown file, or explore **More → Example documents**.
 
 Windows 11 x64 is the primary tested environment. A portable ZIP is also supported; keep its files together and install [Microsoft WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) if needed. Current packages are unsigned, so Windows may show an unknown-publisher or SmartScreen notice.
 
-To upgrade from 0.1.11, save your work, close Folio, and run the new installer. Documents, settings, and recovery data are preserved. See [installation and upgrade details](INSTALLER.md) for packaging, offline installers, file associations, and removal behavior.
+To upgrade from 0.1.11 or 0.2.2, save your work, close Folio, and run the new installer. Documents, settings, and recovery data are preserved. See [installation and upgrade details](INSTALLER.md) for packaging, offline installers, file associations, and removal behavior.
 
 ## Quick start
 

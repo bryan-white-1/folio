@@ -635,11 +635,15 @@ struct App {
                                     EventRegistrationToken token;
                                     web->add_NavigationStarting(
                                         callback<ICoreWebView2NavigationStartingEventHandler>(
-                                            [](ICoreWebView2 *, ICoreWebView2NavigationStartingEventArgs *a) {
+                                            [editorNavigationStarted = false](ICoreWebView2 *, ICoreWebView2NavigationStartingEventArgs *a) mutable {
                                                 CoString u;
                                                 a->get_Uri(u.put());
-                                                if (!u.str().starts_with("https://folio.local/"))
+                                                // Keep document identity, unsaved edits and history in the
+                                                // same editor session, including F5/Ctrl+R reload attempts.
+                                                if (editorNavigationStarted || !u.str().starts_with("https://folio.local/"))
                                                     a->put_Cancel(TRUE);
+                                                else
+                                                    editorNavigationStarted = true;
                                                 return S_OK;
                                             })
                                             .get(),

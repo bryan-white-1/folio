@@ -1,5 +1,6 @@
 import { language, t, tr, translateUi } from './i18n';
-import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx } from '@milkdown/kit/core';
+import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import { defaultHandlers } from 'mdast-util-to-markdown';
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInBulletListCommand, wrapInBlockquoteCommand, createCodeBlockCommand } from '@milkdown/kit/preset/commonmark';
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/kit/preset/gfm';
 import { $prose, callCommand, getMarkdown, replaceAll, insert } from '@milkdown/kit/utils';
@@ -483,6 +484,14 @@ async function start() {
   model.load(welcome);
   editor = await Editor.make().config(ctx => {
     configureLayout(ctx);
+    ctx.update(remarkStringifyOptionsCtx, options => ({ ...options, handlers: {
+      ...options.handlers,
+      break(node, parent, state, info) {
+        // Preserve upstream context rules; use invisible hard breaks for Typora compatibility.
+        const result = defaultHandlers.break(node, parent, state, info);
+        return result === '\\\n' ? '  \n' : result;
+      },
+    } }));
     ctx.set(rootCtx, $('rendered-editor')); ctx.set(defaultValueCtx, model.text);
     ctx.update(editorViewOptionsCtx, options => ({ ...options, editable: () => true, attributes: { 'aria-label': t('Markdown 렌더링 편집'), spellcheck: 'false' } }));
   }).use([...frontmatter, ...preserveSyntax]).use(commonmark).use($prose(() => tableClipboard((view, tr) => {

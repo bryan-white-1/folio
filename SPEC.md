@@ -1,6 +1,6 @@
-갱신: 2026-09-30 08:38 KST (UTC+09:00)
+갱신: 2026-10-19 16:24 KST (UTC+09:00)
 
-Folio 0.2.2 구현 SPEC · Native 기본, 0.1.11 WinUI Legacy 유지
+Folio 0.2.3 구현 SPEC · Native 기본, 0.1.11 WinUI Legacy 유지
 
 2-A 범위: C++/Win32 호스트·공유 WebView2, 목차/상단/설정/최근 문서 웹 셸 이관. 기존 Markdown 편집 엔진·라이브러리·포맷 유지. 상세 배포·호환·검증은 NATIVE_MIGRATION.md.
 
@@ -16,7 +16,7 @@ Folio 0.2.2 구현 SPEC · Native 기본, 0.1.11 WinUI Legacy 유지
 | D02 | 목차는 최상위 흐름의 heading만 추출. 깊이 건너뛰기는 가까운 상위 제목에 연결. 코드·인용 내부 제목 제외 |
 | D03 | 웹 셸 ARIA tree·계층 접기/펼치기·제목 필터. 목차 선택은 본문 제목으로 이동, 편집 커서의 현재 제목 반영. 우클릭/F2/Shift+F10 이름 변경은 기존 원문 패치·공통 이력 사용. Legacy는 WinUI TreeView |
 | E01 | 원문: CodeMirror 6. 렌더링: Milkdown/ProseMirror. 모드 전환 전 미반영 변경·IME 조합 처리 |
-| E02 | 편집 없는 전환은 serializer 결과로 원문을 덮어쓰지 않음. 실제 렌더링 변경 시 전체 Markdown 직렬화 |
+| E02 | 편집 없는 전환은 serializer 결과로 원문을 덮어쓰지 않음. 실제 렌더링 변경 시 전체 Markdown 직렬화. Shift+Enter 강제 줄바꿈은 줄 끝 공백 2칸+개행으로 저장(Typora 호환), 기존 역슬래시 줄바꿈도 시각 편집 시 동일 정규화. 코드·보존 원문 내부 역슬래시 유지 |
 | E03 | 공통 이력: 변경 전 문자열·커서 스냅샷, 동일 출처 650ms 연속 입력 그룹, 전환 시 그룹 분리, 150개·8백만 문자 예산. 큰 문서도 최소 한 단계 유지 |
 | E04 | HTML·참조·front matter 포함 문서도 시각 본문 편집 허용. 해당 토큰은 비실행 원문 보존 노드로 왕복 유지하고 구문 자체는 원문에서 수정. 독립 `<br />`는 편집 가능한 빈 문단. YAML/TOML 메타데이터는 목차 제외 |
 | E05 | 표 셀 경계 드래그로 열 너비 조절. 가이드·가로 스크롤, 정렬 유지. 확정값 40–2400px 정수, 미지정 열은 자동. 전체 행의 같은 열에 적용 |
@@ -63,6 +63,7 @@ Folio 0.2.2 구현 SPEC · Native 기본, 0.1.11 WinUI Legacy 유지
 | W11 | Native 한국어/영어: 유효한 settings.json Language(ko/en) → install-language.txt → Windows UI 언어(한국어=ko, 그 외=en) 순서. 누락·잘못된 값은 기본값 적용. 설정 언어는 저장 후 다음 실행 적용; 문서·revision·dirty·Undo·복구 불변 |
 | W12 | 메뉴·설정·도구 설명·오류/확인·시작/새 문서를 선택 언어로 표시. 앱 소유 정적 문자열만 번역하며 사용자 본문·파일명·경로·목차는 보존. Windows 공용 파일 대화상자의 시스템 항목은 OS 언어 유지. 외부 번역 라이브러리 없음 |
 | W13 | 더보기 → 기본 예제: 표·제목, 표·이미지 크기, Mermaid. examples/{ko,en}에서 실행 시 앱 언어로 선택; 기존 파일 열기·미저장 확인 경로 사용 |
+| W14 | Native·Legacy 웹 편집기는 최초 내비게이션만 허용. F5·Ctrl+R·강제 새로고침·동일 origin 재탐색 차단; 현재 파일·문서 ID·미저장 본문·dirty·Undo/Redo 유지. 저장·종료 snapshot 통신 유지. 디스크 파일 재읽기는 기존 외부 변경 감지 사용 |
 | P01 | Windows x64 네이티브 폴더·ZIP·단일 Inno Setup EXE. .NET/WinUI 런타임 제외, C++ 표준 런타임 정적 링크·WebView2 Loader 동봉·공유 WebView2 필요. 한국어/영어 설치 UI·사용자별 설치·시작 메뉴·선택 바탕 화면·Windows 앱 제거 등록 |
 | P02 | 경량 기본: WebView2 Bootstrapper 내장, 미설치 시 다운로드. 오프라인 옵션: x64 Evergreen Standalone 내장. HKLM/HKCU 확인 → 미설치 시 /silent /install → 설치 여부 재확인 → 앱 설치. 실패 시 재시도 안내. 기존 runtime·제거 후 공유 runtime 유지 |
 | P03 | 동일 AppId 재설치·업데이트. 설치 대상 실행 중이면 업데이트·제거 거부, 강제 종료 없음. 제거는 기록된 앱 파일만 삭제; 사용자 문서·설정·복구본 유지. 구형 제거 스크립트 폐기 |

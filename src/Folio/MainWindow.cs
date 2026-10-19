@@ -169,7 +169,14 @@ public sealed partial class MainWindow : Window
             core.SetVirtualHostNameToFolderMapping("folio.local", webDirectory, CoreWebView2HostResourceAccessKind.DenyCors);
             core.Settings.IsStatusBarEnabled = false; core.Settings.AreDefaultScriptDialogsEnabled = false; core.Settings.IsWebMessageEnabled = true;
             core.Settings.AreDevToolsEnabled = false;
-            core.NavigationStarting += (_, e) => { if (!e.Uri.StartsWith("https://folio.local/", StringComparison.Ordinal)) e.Cancel = true; };
+            // The editor is a single document session. Reloading resets its ID/history
+            // while the host still owns the open file and pending snapshot requests.
+            var editorNavigationStarted = false;
+            core.NavigationStarting += (_, e) =>
+            {
+                if (editorNavigationStarted || !e.Uri.StartsWith("https://folio.local/", StringComparison.Ordinal)) e.Cancel = true;
+                else editorNavigationStarted = true;
+            };
             core.NewWindowRequested += (_, e) => e.Handled = true;
             core.PermissionRequested += (_, e) => e.State = CoreWebView2PermissionState.Deny;
             core.AddWebResourceRequestedFilter("https://document.local/*", CoreWebView2WebResourceContext.Image);

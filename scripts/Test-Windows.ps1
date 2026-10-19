@@ -10,6 +10,8 @@ if (!$AppDirectory) {
 if ($AppDirectory -and (Test-Path -LiteralPath (Join-Path $AppDirectory 'folio-build.json'))) {
     & node (Join-Path $projectRoot 'web/tests/native-host.mjs') $AppDirectory
     if ($LASTEXITCODE -ne 0) { throw 'Native host integration checks failed.' }
+    & node (Join-Path $projectRoot 'web/tests/host-refresh.mjs') $AppDirectory
+    if ($LASTEXITCODE -ne 0) { throw 'Refresh regression checks failed.' }
     return
 }
 $projectXml = [xml](Get-Content -LiteralPath (Join-Path $projectRoot 'src\Folio\Folio.csproj') -Raw)
@@ -27,4 +29,6 @@ try {
     if (!$result.passed -or $process.ExitCode -ne 0) { throw ($result | ConvertTo-Json -Depth 4) }
     $result.tests | ForEach-Object { Write-Output "PASS $_" }
     $result.skipped | ForEach-Object { Write-Output "SKIP $_" }
+    & node (Join-Path $projectRoot 'web/tests/host-refresh.mjs') (Split-Path -Parent $executable)
+    if ($LASTEXITCODE -ne 0) { throw 'Refresh regression checks failed.' }
 } finally { $env:FOLIO_DATA_DIRECTORY = $previousProfile }

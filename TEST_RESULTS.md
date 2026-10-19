@@ -1,4 +1,40 @@
-갱신: 2026-09-30 09:50 KST (UTC+09:00)
+갱신: 2026-10-19 16:24 KST (UTC+09:00)
+
+Folio 0.2.3 · Native 배포 검증 · 2026-10-19
+
+| 검증 | 결과 |
+|---|---|
+| 빌드 | TypeScript/Vite 검증 완료 웹 자산 재사용, Native C++ 새 버전 빌드 통과. EXE FileVersion 0.2.3.0·ProductVersion 0.2.3 확인 |
+| 단위·저장 | 웹 단위 33개·Native 저장 계층 통과 |
+| production UI | 최초 75개 중 71개 통과, 4개는 30초 시간 초과. 같은 제한에서 단일 worker 재실행 4/4 통과; 코드 수정 없음. 신규 줄바꿈 5개 모두 통과 |
+| Native 통합 | 실제 0.2.3 WebView2 저장·복구·외부 충돌·설정·클립보드·이미지·단일 인스턴스·최근 문서·Mermaid 11개 통과 |
+| 새로고침 회귀 | 실제 0.2.3 실행본 6개 통과. 저장/미저장·원문/렌더링·문서 ID/revision/dirty·Undo/Redo 보존·동일 파일 저장·정상 종료 |
+
+근거: `.tools/release-023-ui-initial/.last-run.json`(최초), `web/test-results/.last-run.json`(실패 4개 재검증), `.tools/native-qa/2026-10-19T07-22-40-709Z/native-host-results.json`, `.tools/refresh-qa/2026-10-19T07-23-54-813Z/results.json`. 실행본: `artifacts/Folio-0.2.3-native-win-x64/Folio.exe`. 설치·제거 수명주기는 이번 버전에서 재실행하지 않음. OS 물리 키 입력·IME·실제 Excel·Windows 10 등 기존 제한 유지.
+
+Folio Native 0.2.2·Legacy 0.1.11 · 새로고침 문서 초기화·종료 타임아웃 수정 · 2026-10-19
+
+| 검증 | 결과 |
+|---|---|
+| 원인·재현 | 웹 새로고침으로 welcome 문서·ID 초기화, 호스트의 기존 ID와 불일치하여 snapshot 응답 무시·종료 타임아웃. 기존 Legacy 실행본에서 실제 WebView2 reload 후 편집기 세션 소실 재현 |
+| 수정 | 두 호스트의 최초 내비게이션 이후 재탐색 차단. 현재 파일·미저장 본문·문서 ID·revision·dirty·Undo/Redo 보존; 디스크 재읽기는 기존 외부 변경 감지 사용 |
+| 빌드 | TypeScript/Vite·Native C++·Legacy C# publish 통과. 기존 DOMPurify 중복 import·대형 청크 안내 유지 |
+| 회귀 | 격리 프로필·실제 WebView2, 호스트별 6개 통과. 저장/미저장 문서·원문/렌더링·F5/Ctrl+R/강제 새로고침 키 입력·직접 reload 차단·Undo/Redo·동일 파일 저장·프로세스 정상 종료 확인 |
+| 실행본 | `artifacts/Folio-0.1.11-refresh-win-x64/Folio.exe`, `artifacts/Folio-0.2.2-native-win-x64-20261019-155704/Folio.exe`. 설치본 교체 없음 |
+
+근거: `web/tests/host-refresh.mjs`, `.tools/refresh-qa/2026-10-19T07-03-28-695Z/results.json`(Legacy), `.tools/refresh-qa/2026-10-19T07-03-59-139Z/results.json`(Native). Native 최초 실행은 문서 열기 snapshot 시간 초과로 실패, 동일 빌드 재실행 6개 통과. 키 입력은 Playwright/CDP 합성이며 OS 물리 키 입력은 미검증; 직접 WebView2 페이지 reload로 호스트 내비게이션 차단 별도 검증. 전체 기존 UI 회귀는 미실행. Native 빌드·Windows 검증 스크립트에 신규 회귀 연결.
+
+Folio 0.2.2 · Shift+Enter 저장 호환성 · 2026-10-08
+
+| 검증 | 결과 |
+|---|---|
+| 변경 | 렌더링 강제 줄바꿈을 줄 끝 공백 2칸+개행으로 저장. 상위 serializer의 표·제목 제약 유지, 코드·보존 HTML 내부 역슬래시 유지. 무편집 전환은 기존 원문 유지 |
+| 웹 빌드·단위 | TypeScript/Vite 빌드·단위 33개 통과. 기존 DOMPurify 중복 import·대형 청크 안내 유지 |
+| production UI | 75개 중 최초 73개 통과. 클립보드 2개는 단독 재실행 2/2 통과, 기존 배포본에서도 2/2 통과. 신규 줄바꿈 5개: 저장 ACK·Undo/Redo·모드 전환·재열기·인용·목록·굵은 글씨·기존 줄바꿈 정규화·코드/HTML 보존 모두 통과 |
+| Windows 실제 저장 | 새 Native 실행본·격리 프로필에서 Shift+Enter→파일 저장→재열기 통과. 디스크 공백 2칸·UTF-8 BOM·CRLF·저장 후 dirty 해제·렌더링 줄바꿈 확인 |
+| 실행본 | `artifacts/Folio-0.2.2-native-win-x64-20261008-145336/Folio.exe` 생성. 설치본 교체 없음 |
+
+근거: `web/tests/ui/line-breaks.spec.ts`, `web/test-results/.last-run.json`(최초 회귀), `.tools/line-break-retry-results/.last-run.json`(2개 재실행), `.tools/line-break-baseline-results/.last-run.json`(기존 배포본), `.tools/line-break-native-KT0AkX/results.json`(실제 저장). Typora 앱 직접 실행 검증은 미실시; 공백 2칸 줄바꿈은 [Typora 공식 지원 문법](https://support.typora.io/Line-Break/) 기준.
 
 Folio 0.2.2 · GitHub 공개 패키지 검증 · 2026-09-30
 
