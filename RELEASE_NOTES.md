@@ -1,4 +1,22 @@
-Updated: 2026-10-19 16:24 KST (UTC+09:00)
+Updated: 2026-10-21 12:50 KST (UTC+09:00)
+
+# Folio 0.2.4 — Windows MSI installer
+
+- **MSI installation:** double-click `Folio-Setup-0.2.4-win-x64-online.msi`. Installs for the current user, with a Start menu shortcut, optional desktop shortcut and Markdown integration. Downloads WebView2 only when missing. No developer tools or .NET runtime are needed on the target PC.
+- **Updates and removal:** Windows Installer repair, MSI major upgrades and downgrade protection. Uninstallation preserves user documents, settings, recovery data and shared WebView2.
+- **Heading navigation:** improved caret/focus placement when selecting a heading, including repeated selection, without changing document content.
+- **First-table editing:** insert a paragraph before a document's first table using the keyboard or the top boundary, with shared Undo/Redo.
+- **Korean fonts:** choose a locally installed document font, preview changes, save or cancel, and restore the default.
+
+**Switching from EXE to MSI:** save your work and close Folio; uninstall the existing Folio EXE edition in Windows Settings, then run the MSI. The MSI detects an existing EXE installation and explains this requirement. Documents and `%LOCALAPPDATA%\Folio` settings are retained. Subsequent MSI releases upgrade the installed MSI directly.
+
+**Downloads:** MSI, SHA-256 checksum and JSON package manifest. The online MSI needs internet only if WebView2 is missing. The build also supports an offline MSI using `./build.ps1 -Msi -RuntimeMode Offline`.
+
+**Platform:** Windows x64; Windows 11 is the tested environment. The installer UI is English; the editor supports Korean and English. Packages are unsigned. First-time WebView2 deployment on a clean PC and Windows 10 require separate environment validation. See [installation details](INSTALLER.md) and [test evidence](TEST_RESULTS.md).
+
+[Changes since 0.2.3](https://github.com/bryan-white-1/folio/compare/v0.2.3...v0.2.4)
+
+---
 
 # Folio 0.2.3 — Preserve your document on refresh
 

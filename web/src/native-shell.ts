@@ -1,4 +1,5 @@
 import { t, tr, uiHtml } from './i18n';
+import { defaultFontFamily, fontFamilies, validFontFamily } from './font-settings';
 import './native-shell.css';
 
 type Packet = { type: string; [key: string]: any };
@@ -68,17 +69,22 @@ export function installNativeShell(bridge: Bridge | undefined) {
   }
   function settings() {
     if (modal) return;
-    const original = { BodyLineHeight: preferences.BodyLineHeight ?? 1.95, OutlineLineHeight: preferences.OutlineLineHeight ?? 2, DocumentAlignment: preferences.DocumentAlignment ?? 'center', Language: preferences.Language ?? 'ko' };
+    const original = { BodyLineHeight: preferences.BodyLineHeight ?? 1.95, OutlineLineHeight: preferences.OutlineLineHeight ?? 2, DocumentAlignment: preferences.DocumentAlignment ?? 'center', FontFamily: preferences.FontFamily ?? defaultFontFamily, Language: preferences.Language ?? 'ko' };
     const d = createDialog(t('설정 · Configuration'));
     d.body.innerHTML = uiHtml(`<p class="host-muted">변경 사항을 즉시 미리 봅니다. 저장하면 다음 실행에도 유지됩니다.</p><label>본문 · 표 줄 높이<input id="host-body-spacing" type="number" min="1" max="3" step="0.05"></label><label>문서 영역 배치<select id="host-alignment"><option value="left">왼쪽</option><option value="center">가운데</option></select></label><label>목차 줄 높이<input id="host-outline-spacing" type="number" min="1" max="3" step="0.05"></label><p class="host-muted">줄 높이 1.00–3.00배 · 0.05배 단위</p><label>언어 · Language<select id="host-language"><option value="ko">한국어</option><option value="en">English</option></select></label><p class="host-muted">언어는 저장 후 다음 실행부터 적용됩니다.</p>`);
     const body = el<HTMLInputElement>('host-body-spacing'), outline = el<HTMLInputElement>('host-outline-spacing'), alignment = el<HTMLSelectElement>('host-alignment'), locale = el<HTMLSelectElement>('host-language');
+    const fontField = document.createElement('div');
+    fontField.innerHTML = uiHtml(`<label>한글 글꼴<input id="host-font-family" list="host-font-options" maxlength="128" required autocomplete="off"></label><datalist id="host-font-options"></datalist><p class="host-muted">설치된 글꼴 이름을 선택하거나 입력하세요. 본문·표·목차와 원문의 한글에 적용되며, 미설치 글꼴은 기본 글꼴로 표시됩니다.</p><p id="host-font-preview" class="host-font-preview">가나다라마바사 · 한글 문서 123</p>`);
+    d.body.prepend(fontField);
+    const font = el<HTMLInputElement>('host-font-family'); font.value = original.FontFamily;
+    fontFamilies.forEach(family => { const option = document.createElement('option'); option.value = family; el('host-font-options').append(option); });
     body.value = String(original.BodyLineHeight); outline.value = String(original.OutlineLineHeight); alignment.value = original.DocumentAlignment; locale.value = original.Language;
     let saved = false;
-    const values = () => ({ BodyLineHeight: body.valueAsNumber, OutlineLineHeight: outline.valueAsNumber, DocumentAlignment: alignment.value, Language: locale.value });
-    const preview = () => { save.disabled = !body.validity.valid || !outline.validity.valid || !Number.isFinite(body.valueAsNumber + outline.valueAsNumber); if (!save.disabled) send({ type: 'hostPreferences', preferences: values(), save: false }); };
-    d.button(t('기본값'), () => { body.value = '1.95'; outline.value = '2'; alignment.value = 'center'; preview(); });
+    const values = () => ({ BodyLineHeight: body.valueAsNumber, OutlineLineHeight: outline.valueAsNumber, DocumentAlignment: alignment.value, FontFamily: font.value.trim(), Language: locale.value });
+    const preview = () => { font.setCustomValidity(validFontFamily(font.value) ? '' : t('유효한 글꼴 이름을 입력하세요.')); save.disabled = !font.validity.valid || !body.validity.valid || !outline.validity.valid || !Number.isFinite(body.valueAsNumber + outline.valueAsNumber); if (!save.disabled) send({ type: 'hostPreferences', preferences: values(), save: false }); };
+    d.button(t('기본값'), () => { body.value = '1.95'; outline.value = '2'; alignment.value = 'center'; font.value = defaultFontFamily; preview(); });
     d.button(t('취소'), () => d.dialog.close()); const save = d.button(t('저장'), () => { saved = true; send({ type: 'hostPreferences', preferences: values(), save: true }); d.dialog.close(); }, true);
-    [body, outline, alignment].forEach(input => input.addEventListener('input', preview));
+    [body, outline, alignment, font].forEach(input => input.addEventListener('input', preview));
     d.dialog.addEventListener('close', () => { if (!saved) send({ type: 'hostPreferences', preferences: original, save: false }); }); d.dialog.showModal();
   }
   function examples() {

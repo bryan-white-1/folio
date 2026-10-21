@@ -17,11 +17,14 @@ public sealed class Preferences
     public double BodyLineHeight { get; set; } = 1.95;
     public double OutlineLineHeight { get; set; } = 2;
     public string DocumentAlignment { get; set; } = "center";
+    public string FontFamily { get; set; } = "Malgun Gothic";
+    public static bool ValidFontFamily(string? value) => !string.IsNullOrWhiteSpace(value) && value.Length <= 128 && !value.Any(c => c < 32 || c == 127 || "\"'\\;{}".Contains(c));
     public void Normalize()
     {
         BodyLineHeight = double.IsFinite(BodyLineHeight) ? Math.Clamp(BodyLineHeight, 1, 3) : 1.95;
         OutlineLineHeight = double.IsFinite(OutlineLineHeight) ? Math.Clamp(OutlineLineHeight, 1, 3) : 2;
         DocumentAlignment = DocumentAlignment == "left" ? "left" : "center";
+        FontFamily = ValidFontFamily(FontFamily) ? FontFamily.Trim() : "Malgun Gothic";
         var recent = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in RecentFiles ?? [])

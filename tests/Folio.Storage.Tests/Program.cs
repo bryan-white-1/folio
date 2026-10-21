@@ -30,15 +30,18 @@ try
     await File.WriteAllBytesAsync(Path.Combine(destinationDir, "assets", "test.png"), [4, 5]);
     rejected = false; try { await FileStore.CopyImages(Path.Combine(sourceDir, "a.md"), Path.Combine(destinationDir, "b.md"), ["assets/test.png"]); } catch (IOException) { rejected = true; }
     Check(rejected, "Existing image with different content is not overwritten");
-    FileStore.SavePreferences(new Preferences { BodyLineHeight = 1.4, OutlineLineHeight = 1.25, DocumentAlignment = "left", Theme = "dark" });
+    FileStore.SavePreferences(new Preferences { BodyLineHeight = 1.4, OutlineLineHeight = 1.25, DocumentAlignment = "left", Theme = "dark", FontFamily = "Batang" });
     var preferences = FileStore.LoadPreferences();
+    Check(preferences.FontFamily == "Batang", "Font preference survives reload");
     Check(preferences.BodyLineHeight == 1.4 && preferences.OutlineLineHeight == 1.25 && preferences.DocumentAlignment == "left" && preferences.Theme == "dark", "Configuration persists without losing existing preferences");
     await File.WriteAllTextAsync(Path.Combine(FileStore.DataDirectory, "settings.json"), "{\"Theme\":\"dark\"}");
     preferences = FileStore.LoadPreferences();
+    Check(preferences.FontFamily == "Malgun Gothic", "Missing font uses default");
     Check(preferences.BodyLineHeight == 1.95 && preferences.OutlineLineHeight == 2 && preferences.DocumentAlignment == "center", "Older settings migrate with default configuration");
-    FileStore.SavePreferences(new Preferences { BodyLineHeight = double.NaN, OutlineLineHeight = 20, DocumentAlignment = "invalid" });
+    FileStore.SavePreferences(new Preferences { BodyLineHeight = double.NaN, OutlineLineHeight = 20, DocumentAlignment = "invalid", FontFamily = "bad\"font" });
     preferences = FileStore.LoadPreferences();
     Check(preferences.BodyLineHeight == 1.95 && preferences.OutlineLineHeight == 3 && preferences.DocumentAlignment == "center", "Invalid configuration values are bounded safely");
+    Check(preferences.FontFamily == "Malgun Gothic", "Invalid font uses default");
     for (var i = 0; i < 25; i++) preferences.RememberFile(Path.Combine(temp, $"폴더 {i:00}", "동일 문서.md"));
     FileStore.SavePreferences(preferences);
     preferences = FileStore.LoadPreferences();
@@ -72,6 +75,6 @@ try
     Check(recovery.AssetId == assetId && File.Exists(Path.Combine(Path.GetDirectoryName(FileStore.DraftDocument(recovery.AssetId!))!, imported[0])), "Unsaved image assets survive recovery and resolve from their original draft");
     rejected = false; try { FileStore.DraftDocument("../escape"); } catch (IOException) { rejected = true; }
     Check(rejected, "Draft asset identifiers cannot escape the profile directory");
-    Console.WriteLine("21 storage tests passed.");
+    Console.WriteLine("24 storage tests passed.");
 }
 finally { Directory.Delete(temp, true); }

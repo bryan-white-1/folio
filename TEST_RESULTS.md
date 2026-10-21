@@ -1,4 +1,31 @@
-갱신: 2026-10-19 16:24 KST (UTC+09:00)
+갱신: 2026-10-21 12:50 KST (UTC+09:00)
+
+Folio 0.2.4 · MSI 배포 검증 · 2026-10-21
+
+| 검증 | 결과 |
+|---|---|
+| 빌드 | TypeScript/Vite·Native C++·WiX 5.0.2 MSI 컴파일 및 ICE 검사 통과 |
+| 단위·저장 | 웹 33/33·Native 저장 테스트·Legacy 저장 24/24 통과 |
+| production UI | 79/79 통과, 단일 worker·최초 실행, 재시도 없음 |
+| 새로고침 | 실제 0.2.4 Native WebView2 회귀 6/6 통과 |
+| MSI 설치 | 격리 QA 제품·한글 경로 설치·합성 이전 MSI 버전에서 MajorUpgrade·이전 제품 제거·전체 payload SHA-256 일치 |
+| MSI 통합 | 시작 메뉴·선택 바탕 화면·인용 파일 열기 명령 등록, 누락 파일 복구·다운그레이드 차단·EXE 전환 차단 통과 |
+| 설치 앱 실행 | 설치된 앱의 실제 WebView2 통합 13/13 통과: 저장·복구·충돌·설정·글꼴·클립보드·이미지·단일 인스턴스·최근 문서·목차·Mermaid |
+| 제거 | 앱 파일·바로가기·파일 열기 등록 제거, 설치 경로 내 사용자 문서 보존. 실제 기존 EXE 설치는 유지 |
+
+근거: `artifacts/msi-tests.json`, `.tools/msi-ui-tests.log`, `.tools/msi-unit-tests.log`, `.tools/msi-refresh.log`, `.tools/msi-legacy-storage.log`. MSI 테스트는 별도 QA UpgradeCode·제품명·레지스트리·바로가기를 사용하며, 버전 교체는 같은 payload의 0.2.3/0.2.4 시험 패키지로 검증했다. 초기 QA 실패는 실제 EXE 감지 항목 미분리였으며 분리 후 전체 통과. Windows 11 x64·기설치 WebView2 환경; runtime 없는 새 PC의 최초 온라인/오프라인 설치·Windows 10·OS 물리 IME·실제 Excel 수동 검증은 미수행. 미서명 배포.
+
+Folio · 목차 이동·첫 표 앞 문단·한글 글꼴 설정 · 2026-10-19
+
+| 검증 | 결과 |
+|---|---|
+| 빌드 | TypeScript/Vite·Native C++·Legacy C# 통과, Legacy 경고/오류 0 |
+| 신규 UI | 4/4 통과: 목차 렌더링/원문 이동·동일 제목 재선택·무변경, 첫 표 앞 키보드/마우스 경계·Enter·한글 입력·Undo/Redo·너비 보존, 글꼴 미리보기/취소/저장/기본값/유효성·모드 유지 |
+| 단위·저장 | 웹 33/33, Native 저장, Legacy 저장 24개 통과. 글꼴 기본값·잘못된 값·저장/재읽기 포함 |
+| Native 통합 | 격리 프로필·실제 WebView2 13/13 통과. 목차 초점·글꼴 즉시 반영/취소/디스크 저장/재시작 복원, 기존 저장·복구·이미지·클립보드·Mermaid 유지 |
+| 전체 production UI | 최초 78/79 통과. 이미지 다중 붙여넣기 커서 위치 1건은 코드 변경 없이 개발/production 단독 재실행 각 1/1 통과; 최초 불일치 원인 미확정 |
+
+근거: `.tools/navigation-production-ui`, `.tools/navigation-production-recheck`, `.tools/navigation-image-recheck`, `.tools/native-qa/2026-10-19T14-38-51-959Z/native-host-results.json`. 수정 실행본: `artifacts/Folio-0.2.3-native-win-x64-20261019-233755/Folio.exe`. 최종 영문 견본 번역을 포함한 웹 자산 동기화·진입 파일 SHA-256 일치 확인. 설치본 교체 없음. OS 물리 IME·실제 Excel 수동 조작 미검증.
 
 Folio 0.2.3 · Native 배포 검증 · 2026-10-19
 

@@ -1,4 +1,4 @@
-Updated: 2026-10-19 16:24 KST (UTC+09:00)
+Updated: 2026-10-21 12:50 KST (UTC+09:00)
 
 # Folio
 
@@ -6,11 +6,11 @@ Updated: 2026-10-19 16:24 KST (UTC+09:00)
 
 Edit the document as you read it. Turn Mermaid code into diagrams, navigate by headings, adjust tables and images, and keep everything in local Markdown files.
 
-**About 6.3 MB for the Windows x64 installer.** No account, server, or subscription is required for local editing.
+**Windows x64 MSI installer.** No account, server, or subscription is required for local editing.
 
-[Download for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.3/Folio-Setup-0.2.3-win-x64-online.exe) · [Release notes](https://github.com/bryan-white-1/folio/releases/tag/v0.2.3) · [Features](#features) · [Build from source](#build-from-source) · [Apache-2.0](LICENSE)
+[Download for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.4/Folio-Setup-0.2.4-win-x64-online.msi) · [Release notes](https://github.com/bryan-white-1/folio/releases/tag/v0.2.4) · [Features](#features) · [Build from source](#build-from-source) · [Apache-2.0](LICENSE)
 
-**Current release: 0.2.3** — refresh attempts preserve your document, unsaved edits and Undo/Redo history; saving and closing stay responsive. Rendered hard line breaks now use two trailing spaces for Markdown compatibility. See the [English release notes](RELEASE_NOTES.md).
+**Current release: 0.2.4** — Windows MSI installation, improved heading navigation, inserting a paragraph before the first table, and configurable Korean fonts. See the [English release notes](RELEASE_NOTES.md).
 
 ![Folio's English interface with a Markdown heading outline, Mermaid workflow, and editable table](docs/images/folio-overview.png)
 
@@ -72,17 +72,17 @@ Screenshots show the 0.2.2 native app's English interface with sample documents.
 
 Folio uses a **C++/Win32 host and the shared Microsoft WebView2 Runtime**, with Milkdown, CodeMirror, and Mermaid inside the editor. The native package does not bundle .NET or Windows App SDK runtimes.
 
-The `Folio-Setup-0.2.3-win-x64-online.exe` download is **about 6.3 MB**, including the editor, examples, and documentation. Exact bytes and SHA-256 checksums are supplied with the [release assets](https://github.com/bryan-white-1/folio/releases/tag/v0.2.3). A shared WebView2 installation is separate: if it is missing, the online installer downloads it during setup. Local document editing then works offline.
+The `Folio-Setup-0.2.4-win-x64-online.msi` download includes the editor, examples, documentation, and WebView2 bootstrapper. Exact bytes and SHA-256 checksums are supplied with the [release assets](https://github.com/bryan-white-1/folio/releases/tag/v0.2.4). A shared WebView2 installation is separate: if it is missing, the online installer downloads it during setup. Local document editing then works offline.
 
 ## Install
 
-1. Download [Folio 0.2.3 for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.3/Folio-Setup-0.2.3-win-x64-online.exe).
+1. Download [Folio 0.2.4 for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.4/Folio-Setup-0.2.4-win-x64-online.msi).
 2. Run the installer and launch **Folio** from the Start menu. Folio installs per user without requiring administrator rights for the app.
 3. Open a Markdown file, or explore **More → Example documents**.
 
 Windows 11 x64 is the primary tested environment. A portable ZIP is also supported; keep its files together and install [Microsoft WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) if needed. Current packages are unsigned, so Windows may show an unknown-publisher or SmartScreen notice.
 
-To upgrade from 0.1.11 or 0.2.2, save your work, close Folio, and run the new installer. Documents, settings, and recovery data are preserved. See [installation and upgrade details](INSTALLER.md) for packaging, offline installers, file associations, and removal behavior.
+To switch from an EXE installation to MSI, save your work, close Folio, uninstall the existing Folio app in Windows Settings, then run the MSI. Future MSI updates install over the previous MSI version. Documents, settings, and recovery data are preserved. See [installation and upgrade details](INSTALLER.md) for packaging, offline installers, file associations, and removal behavior.
 
 ## Quick start
 
@@ -122,17 +122,17 @@ Settings and recent files live in `%LOCALAPPDATA%\Folio\settings.json`; recovery
 
 ## Build from source
 
-Use Windows x64, PowerShell (7 recommended), and Node.js 22.12+ or 24 with npm. The native build downloads and verifies its pinned C++ toolchain and WebView2 SDK. Installer builds also obtain Inno Setup; the first build needs an internet connection. Web UI tests use Microsoft Edge.
+Use Windows x64, PowerShell (7 recommended), and Node.js 22.12+ or 24 with npm. The native build downloads and verifies its pinned C++ toolchain and WebView2 SDK. MSI builds require .NET 8 SDK and obtain WiX 5.0.2; the first build needs an internet connection. Web UI tests use Microsoft Edge.
 
 ```powershell
 git clone https://github.com/bryan-white-1/folio.git
 cd folio
 
 # Build, test, and create a portable ZIP plus the lightweight installer.
-./build.ps1 -Zip -Installer
+./build.ps1 -Zip -Msi
 
 # Optional: include the full WebView2 installer for offline setup.
-./build.ps1 -Installer -RuntimeMode Offline
+./build.ps1 -Msi -RuntimeMode Offline
 ```
 
 Outputs are written to `artifacts/`. The default host is `src/Folio.Native`; the older C#/WinUI host remains available through `./build.ps1 -HostMode Legacy`.

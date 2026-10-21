@@ -6,6 +6,9 @@ import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/k
 import { $prose, callCommand, getMarkdown, replaceAll, insert } from '@milkdown/kit/utils';
 import { AllSelection, Plugin, TextSelection, type Selection, type Command } from '@milkdown/kit/prose/state';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
+import { GapCursor, gapCursor } from '@milkdown/kit/prose/gapcursor';
+import { createParagraphNear } from '@milkdown/kit/prose/commands';
+import '@milkdown/kit/prose/gapcursor/style/gapcursor.css';
 import type { EditorView as ProseEditorView } from '@milkdown/kit/prose/view';
 import { columnResizing, columnResizingPluginKey, CellSelection, goToNextCell } from '@milkdown/kit/prose/tables';
 import { EditorState } from '@codemirror/state';
@@ -34,6 +37,7 @@ import { removeCodeBlocks, selectedCodeBlocks, sourceCodeBlocks, sourceCodeRemov
 import { installImageClipboard } from './image-clipboard';
 import { RenderedSearch, renderedSearchPlugin } from './rendered-search';
 import { installNativeShell } from './native-shell';
+import { applyFontFamily } from './font-settings';
 
 type HostPacket = { type: string; [key: string]: any };
 type WebViewBridge = { postMessage(data: unknown): void; addEventListener(type: string, cb: (event: MessageEvent<HostPacket>) => void): void };
@@ -174,8 +178,10 @@ function focusRenderedAt(from: number) {
   editor.action(ctx => {
     const view = ctx.get(editorViewCtx); let count = -1; let target = 0;
     view.state.doc.forEach((node, pos) => { if (node.type.name === 'heading' && ++count === index) target = pos + 1; });
-    view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(Math.min(target, view.state.doc.content.size)))).scrollIntoView());
+    // ProseMirror only scrolls DOM selections inside the editor. Outline clicks
+    // move focus away, so restore it before dispatching the scroll request.
     view.focus();
+    view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(Math.min(target, view.state.doc.content.size)))).scrollIntoView());
   });
 }
 async function jump(id: string) {
@@ -437,6 +443,7 @@ async function receive(packet: HostPacket) {
       const ratio = typeof packet.bodyLineHeight === 'number' && Number.isFinite(packet.bodyLineHeight) ? Math.max(1, Math.min(3, packet.bodyLineHeight)) : 1.95;
       document.documentElement.style.setProperty('--body-line-height', String(ratio));
       document.documentElement.dataset.documentAlignment = packet.documentAlignment === 'left' ? 'left' : 'center';
+      applyFontFamily(packet.fontFamily);
       break;
     }
     case 'toggleMode': await switchMode(mode === 'rendered' ? 'source' : 'rendered'); break;
@@ -494,7 +501,7 @@ async function start() {
     } }));
     ctx.set(rootCtx, $('rendered-editor')); ctx.set(defaultValueCtx, model.text);
     ctx.update(editorViewOptionsCtx, options => ({ ...options, editable: () => true, attributes: { 'aria-label': t('Markdown 렌더링 편집'), spellcheck: 'false' } }));
-  }).use([...frontmatter, ...preserveSyntax]).use(commonmark).use($prose(() => tableClipboard((view, tr) => {
+  }).use([...frontmatter, ...preserveSyntax]).use($prose(() => gapCursor())).use(commonmark).use($prose(() => tableClipboard((view, tr) => {
     flushRendered(); model.breakGroup(); view.dispatch(tr); flushRendered(); model.breakGroup(); publish();
   }, toast))).use($prose(() => columnResizing({ cellMinWidth: 40, defaultCellMinWidth: 100, handleWidth: 7 }))).use(gfm).use([...rawInline, ...rawBlock]).use(layoutConstraints).use($prose(() => renderedSearchPlugin(() => renderedSearch?.update()))).use(syncPlugin).create();
   renderedSearch = new RenderedSearch(() => editor.action(ctx => ctx.get(editorViewCtx)));
@@ -547,6 +554,9 @@ document.addEventListener('keydown', e => {
     const view = editor.action(ctx => ctx.get(editorViewCtx));
     if (e.key === 'Enter') syncRenderedTextSelection(view);
     const state = view.state;
+    if (state.selection instanceof GapCursor && e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault(); e.stopImmediatePropagation(); void applyTable(createParagraphNear); return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && splitTaskItem(state)) {
       e.preventDefault(); e.stopImmediatePropagation();
       flushRendered(); model.breakGroup();

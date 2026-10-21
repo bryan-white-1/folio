@@ -248,7 +248,8 @@ inline Json defaults() {
                          {"RecentFiles", Json::Array{}},
                          {"BodyLineHeight", 1.95},
                          {"OutlineLineHeight", 2},
-                         {"DocumentAlignment", "center"}});
+                         {"DocumentAlignment", "center"},
+                         {"FontFamily", "Malgun Gothic"}});
 }
 inline void normalizePreferences(Json &p) {
     p["Theme"] = p["Theme"].str() == "dark" ? "dark" : "light";
@@ -259,6 +260,12 @@ inline void normalizePreferences(Json &p) {
     p["BodyLineHeight"] = std::clamp(p["BodyLineHeight"].num(1.95), 1., 3.);
     p["OutlineLineHeight"] = std::clamp(p["OutlineLineHeight"].num(2), 1., 3.);
     p["DocumentAlignment"] = p["DocumentAlignment"].str() == "left" ? "left" : "center";
+    auto font = p["FontFamily"].str();
+    if (font.empty() || font.size() > 384 || font.find_first_not_of(' ') == std::string::npos ||
+        std::any_of(font.begin(), font.end(), [](unsigned char c) {
+            return c < 32 || c == 127 || c == '"' || c == '\'' || c == '\\' || c == ';' || c == '{' || c == '}';
+        })) font = "Malgun Gothic";
+    p["FontFamily"] = font;
     Json::Array recent;
     for (auto &v : p["RecentFiles"].array()) {
         try {

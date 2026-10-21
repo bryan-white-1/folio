@@ -1,4 +1,4 @@
-param([switch]$SkipTests, [switch]$SkipWebBuild, [switch]$Zip, [switch]$Installer, [ValidateSet('Online','Offline')][string]$RuntimeMode = 'Online')
+param([switch]$SkipTests, [switch]$SkipWebBuild, [switch]$Zip, [switch]$Installer, [switch]$Msi, [ValidateSet('Online','Offline')][string]$RuntimeMode = 'Online')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $nativeTools = Join-Path $projectRoot '.tools/native'
@@ -44,7 +44,7 @@ try {
     if (!(Test-Path dist/index.html)) { throw 'Missing web build' }
     if (!$SkipTests) { Invoke-Checked 'npm.cmd' @('test'); Invoke-Checked 'npm.cmd' @('run','test:ui') }
 } finally { Pop-Location }
-$version = '0.2.3'
+$version = '0.2.4'
 $publish = Join-Path $projectRoot "artifacts/Folio-$version-native-win-x64"
 if (Test-Path -LiteralPath $publish) { $publish += '-' + (Get-Date -Format 'yyyyMMdd-HHmmss') }
 New-Item -ItemType Directory -Path $publish -Force | Out-Null
@@ -74,5 +74,6 @@ if (!$SkipTests) {
 }
 if ($Zip) { Compress-Archive -LiteralPath $publish -DestinationPath ($publish + '.zip') }
 if ($Installer) { & (Join-Path $PSScriptRoot 'Build-Installer.ps1') -AppDirectory $publish -RuntimeMode $RuntimeMode }
+if ($Msi) { & (Join-Path $PSScriptRoot 'Build-Msi.ps1') -AppDirectory $publish -RuntimeMode $RuntimeMode }
 $bytes = (Get-ChildItem -LiteralPath $publish -File -Recurse | Measure-Object Length -Sum).Sum
 Write-Output "Ready: $publish\Folio.exe ($([math]::Round($bytes/1MB,2)) MiB)"

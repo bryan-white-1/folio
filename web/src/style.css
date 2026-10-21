@@ -1,4 +1,9 @@
 @charset "UTF-8";
+.ProseMirror{position:relative;font-family:var(--document-font,"Malgun Gothic",sans-serif)}
+.ProseMirror:has(>.tableWrapper:first-child,>.ProseMirror-gapcursor:first-child+.tableWrapper){padding-top:12px}
+.ProseMirror .ProseMirror-gapcursor:after{border-color:var(--text)}
+.host-tree-row{font-family:var(--document-font,"Malgun Gothic",sans-serif)}
+#source-editor .cm-scroller,.milkdown .ProseMirror code{font-family:Consolas,var(--document-font,"Malgun Gothic",sans-serif)}
 .format-bar button[aria-pressed=true]{background:var(--selection);color:var(--accent)}.format-bar button svg{vertical-align:middle}
 :root{font-family:"Segoe UI Variable","Segoe UI","Malgun Gothic",sans-serif;color:var(--text);background:var(--paper);--paper:#fff;--editor-paper:#fff;--surface:#f6f7f8;--chrome:#fafbfc;--line:#e5e7eb;--text:#1f2937;--muted:#6b7280;--accent:#374151;--selection:#eceff2;--code:#f9fafb;--quote-line:#d1d5db;--toast:#374151;--overlay:#11182740;--popover-shadow:#11182726;color-scheme:light}
 :root[data-theme=dark]{--paper:#202927;--editor-paper:#202927;--surface:#1b2321;--chrome:#1d2623;--line:#34413b;--text:#e1e9e5;--muted:#99aaa2;--accent:#7ed6b6;--selection:#33564a;--code:#293630;--quote-line:#88b7a3;--toast:#234b3d;--overlay:#102c2440;--popover-shadow:#10282026;color-scheme:dark}

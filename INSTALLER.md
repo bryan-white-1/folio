@@ -1,4 +1,21 @@
-갱신: 2026-09-30 08:38 KST (UTC+09:00)
+갱신: 2026-10-21 12:50 KST (UTC+09:00)
+
+Folio 0.2.4 · MSI 배포
+
+| 항목 | MSI 계약 |
+|---|---|
+| 빌드 | `./build.ps1 -Msi`; 기존 Native publish 재사용: `./scripts/Build-Msi.ps1 -AppDirectory <폴더>`. WiX 5.0.2·UI 확장 자동 확보, 빌드 PC에 .NET 8 SDK 필요; 설치 PC에는 개발 도구 불필요 |
+| 산출물 | `artifacts/Folio-Setup-0.2.4-win-x64-online.msi`·SHA-256·JSON. `-RuntimeMode Offline`은 WebView2 전체 설치 파일 동봉 |
+| 설치 | x64·현재 사용자·관리자 권한 불필요. `%LOCALAPPDATA%\Programs\Folio`, 시작 메뉴 기본·바탕 화면 선택·Markdown 연결 등록 선택. 기존 기본 앱 유지 |
+| 실행 의존성 | WebView2 사용자/시스템 등록 확인, 없으면 서명 검증된 동봉 Microsoft 설치 파일 실행. 온라인은 인터넷 필요. 실패 시 MSI 설치 실패·롤백, 공유 runtime은 제거하지 않음 |
+| EXE → MSI | 기존 Inno EXE 설치 감지 시 설치 중단·전환 안내. 문서 저장·Folio 종료 → Windows 설정에서 기존 Folio 제거 → MSI 실행. 기존 문서·`%LOCALAPPDATA%\Folio` 설정/복구 유지 |
+| MSI 업데이트 | 고정 UpgradeCode·MajorUpgrade로 이전 MSI 제거/새 버전 설치, 다운그레이드 차단. 같은 사용자로 실행. 업데이트 전 문서 저장·앱 종료 |
+| 제거·복구 | Windows 앱 목록에서 제거·수정, Windows Installer 복구 지원. MSI 소유 파일·바로가기·등록값 제거, 사용자 문서·설정·공유 WebView2 보존 |
+| 무인 설치 | `msiexec /i Folio-Setup-0.2.4-win-x64-online.msi /qn /norestart /L*v install.log`; 바탕화면 포함 전체 기능: `ADDLOCAL=ALL` |
+| QA | `./scripts/Test-Msi.ps1 -AppDirectory <폴더>`. 별도 QA 제품/UpgradeCode/폴더/레지스트리/바로가기 사용. 기존 EXE 감지·한글 경로·업그레이드·파일 해시·복구·다운그레이드 차단·실제 WebView2·제거/문서 보존 검증 |
+| 제한 | 설치 UI는 영어. 현재 미서명. Windows 11 x64·기존 WebView2 환경 검증 대상이며, runtime 없는 새 PC·오프라인 최초 설치는 별도 검증 필요 |
+
+아래는 기존 EXE 설치 방식의 기록이다.
 
 Folio 0.2.2 · Windows 네이티브 호스트 설치 패키지
 

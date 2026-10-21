@@ -1,10 +1,11 @@
-param([switch]$SkipTests, [switch]$Zip, [switch]$Installer, [ValidateSet('Online','Offline')][string]$RuntimeMode = 'Online', [ValidateSet('Native','Legacy')][string]$HostMode = 'Native')
+param([switch]$SkipTests, [switch]$Zip, [switch]$Installer, [switch]$Msi, [ValidateSet('Online','Offline')][string]$RuntimeMode = 'Online', [ValidateSet('Native','Legacy')][string]$HostMode = 'Native')
 $ErrorActionPreference = 'Stop'
 if ($HostMode -eq 'Native') {
-    & (Join-Path $PSScriptRoot 'scripts/Build-Native.ps1') -SkipTests:$SkipTests -Zip:$Zip -Installer:$Installer -RuntimeMode $RuntimeMode
+    & (Join-Path $PSScriptRoot 'scripts/Build-Native.ps1') -SkipTests:$SkipTests -Zip:$Zip -Installer:$Installer -Msi:$Msi -RuntimeMode $RuntimeMode
     return
 }
 $projectRoot = $PSScriptRoot
+if ($Msi) { throw 'MSI packaging supports the Native host only.' }
 $projectXml = [xml](Get-Content -LiteralPath (Join-Path $projectRoot 'src\Folio\Folio.csproj') -Raw)
 $appVersion = [string]$projectXml.Project.PropertyGroup.Version
 $dotnetExecutable = Join-Path $projectRoot '.tools\dotnet\dotnet.exe'

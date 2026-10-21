@@ -57,6 +57,11 @@ int main() {
             "Legacy settings normalization");
     require(p["Language"].str() == defaultLanguage(),
             "Legacy settings inherit installation or OS language");
+    require(p["FontFamily"].str() == "Malgun Gothic", "Missing font uses default");
+    p["FontFamily"] = "bad\"font";
+    normalizePreferences(p);
+    require(p["FontFamily"].str() == "Malgun Gothic", "Invalid font uses default");
+    p["FontFamily"] = "Batang";
     p["Language"] = "invalid";
     normalizePreferences(p);
     require(p["Language"].str() == defaultLanguage(),
@@ -77,6 +82,7 @@ int main() {
             "Recent deduplication and settings persistence");
     require(restored["Language"].str() == "en",
             "Explicit language persists across preference reload");
+    require(restored["FontFamily"].str() == "Batang", "Font preference survives reload");
     rejects([&] { contained(root, "../outside.png"); });
     rejects([&] { contained(root, "%2e%2e/outside.png"); });
     rejects([&] { contained(root, "C:/outside.png"); });

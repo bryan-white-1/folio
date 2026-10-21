@@ -40,6 +40,10 @@ try {
   await packet({ type: 'command', name: 'openPath', path: doc });
   await waitFor(async () => (await state()).text.includes('# 호스트 검증'), 'Open failed');
   await page.getByRole('treeitem').filter({ hasText: '하위 제목' }).waitFor();
+  const beforeJump = await state();
+  await page.getByRole('treeitem').filter({ hasText: '하위 제목' }).click();
+  assert.equal(await page.evaluate(() => window.getSelection()?.anchorNode?.parentElement?.closest('h2')?.textContent), '하위 제목');
+  assert.deepEqual(await state(), beforeJump); tests.push('Native outline click focuses the requested heading without edits');
   await packet({ type: 'command', name: 'save' });
   await waitFor(async () => !(await state()).dirty, 'Save failed');
   assert.deepEqual(await readFile(doc), original); tests.push('UTF-8 BOM / mixed newline unchanged save');
@@ -54,9 +58,15 @@ try {
   await packet({ type: 'command', name: 'save' }); await page.getByRole('button', { name: '덮어쓰기', exact: true }).click();
   await waitFor(async () => (await readFile(doc, 'utf8')).includes('복구할 내용') && !(await state()).dirty, 'Conflict overwrite failed');
   await page.getByRole('button', { name: '설정 · Configuration' }).click(); await page.locator('#host-body-spacing').fill('1.50'); await page.locator('#host-body-spacing').dispatchEvent('input');
+  await page.locator('#host-font-family').fill('Batang');
+  await waitFor(async () => (await page.locator('.ProseMirror').evaluate(e => getComputedStyle(e).fontFamily)).includes('Batang'), 'Font preview failed');
   await page.getByRole('button', { name: '취소', exact: true }).click(); await waitFor(async () => (await page.locator('.ProseMirror').evaluate(e => getComputedStyle(e).lineHeight)) === '29.25px', 'Settings cancel failed');
+  assert(!(await page.locator('.ProseMirror').evaluate(e => getComputedStyle(e).fontFamily)).includes('Batang'));
   await page.getByRole('button', { name: '설정 · Configuration' }).click(); await page.locator('#host-body-spacing').fill('1.50'); await page.locator('#host-body-spacing').dispatchEvent('input'); await page.locator('.host-dialog').getByRole('button', { name: '저장', exact: true }).click();
   await waitFor(async () => JSON.parse(await readFile(path.join(profile, 'settings.json'), 'utf8')).BodyLineHeight === 1.5, 'Settings save failed'); tests.push('Settings preview / cancel / persistence');
+  await page.getByRole('button', { name: '설정 · Configuration' }).click(); await page.locator('#host-font-family').fill('Batang');
+  await page.locator('.host-dialog').getByRole('button', { name: '저장', exact: true }).click();
+  await waitFor(async () => JSON.parse(await readFile(path.join(profile, 'settings.json'), 'utf8')).FontFamily === 'Batang', 'Font save failed');
   await page.getByRole('tab', { name: '원문', exact: true }).click();
   await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('\n\n');
   await packet({ type: 'copyTable', text: '클립보드 검증\t두 번째 셀', html: '<table><tr><td>클립보드 검증</td><td>두 번째 셀</td></tr></table>' });
@@ -77,6 +87,7 @@ try {
   await waitFor(async () => JSON.parse(await readFile(path.join(profile, 'recovery.json'), 'utf8')).Text.includes('재시작 복구'), 'Recovery missing before crash');
   const exit = once(child, 'exit'); child.kill(); await exit; await browser.close().catch(() => {});
   await launch(); await page.getByRole('button', { name: '복구', exact: true }).click(); await waitFor(async () => (await state()).text.includes('재시작 복구') && (await state()).dirty, 'Recovery reopen failed'); tests.push('Crash recovery / compatible profile');
+  assert((await page.locator('.ProseMirror').evaluate(e => getComputedStyle(e).fontFamily)).includes('Batang')); tests.push('Korean font preview / cancel / disk persistence / restart restoration');
   await page.getByRole('tab', { name: '원문', exact: true }).click(); await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('\n\n```mermaid\ngraph TD\n A[시작] --> B[완료]\n```\n');
   await page.getByRole('tab', { name: '렌더링', exact: true }).click(); await page.locator('.mermaid-diagram').waitFor(); tests.push('Existing Mermaid retained in native WebView2');
   await page.screenshot({ path: path.join(profile, 'native-light.png') }); await packet({ type: 'command', name: 'theme' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark'); await page.screenshot({ path: path.join(profile, 'native-dark.png') });

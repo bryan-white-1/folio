@@ -1,4 +1,5 @@
 :root[data-native-shell=true] body{overflow:hidden}
+.host-font-preview{padding:16px;border:1px solid var(--line);background:var(--surface);font-family:var(--document-font,"Malgun Gothic",sans-serif);font-size:18px!important}
 :root[data-native-shell=true] .format-bar{overflow:visible}
 #native-shell{height:100vh;display:flex;flex-direction:column;--sidebar-width:260px;--outline-height:32px;background:var(--chrome)}
 .host-bar{background:var(--chrome);height:56px;flex-shrink:0;display:flex;align-items:center;gap:20px;padding:0 20px;border-bottom:1px solid var(--line)}

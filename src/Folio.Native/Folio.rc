@@ -2,8 +2,8 @@
 1 ICON "../Folio/Assets/Folio.ico"
 1 RT_MANIFEST "../Folio/app.manifest"
 1 VERSIONINFO
-FILEVERSION 0,2,3,0
-PRODUCTVERSION 0,2,3,0
+FILEVERSION 0,2,4,0
+PRODUCTVERSION 0,2,4,0
 FILEOS VOS_NT_WINDOWS32
 FILETYPE VFT_APP
 BEGIN
@@ -13,9 +13,9 @@ BEGIN
   BEGIN
    VALUE "CompanyName", "Folio"
    VALUE "FileDescription", "Folio Markdown Editor"
-   VALUE "FileVersion", "0.2.3.0"
+   VALUE "FileVersion", "0.2.4.0"
    VALUE "ProductName", "Folio"
-   VALUE "ProductVersion", "0.2.3"
+   VALUE "ProductVersion", "0.2.4"
   END
  END
  BLOCK "VarFileInfo"

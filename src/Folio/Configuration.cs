@@ -10,7 +10,7 @@ public sealed partial class MainWindow
     private void ApplyConfiguration()
     {
         preferences.Normalize();
-        Post(new { type = "configuration", bodyLineHeight = preferences.BodyLineHeight, documentAlignment = preferences.DocumentAlignment });
+        Post(new { type = "configuration", bodyLineHeight = preferences.BodyLineHeight, documentAlignment = preferences.DocumentAlignment, fontFamily = preferences.FontFamily });
         RenderTree(true);
     }
 
@@ -19,6 +19,8 @@ public sealed partial class MainWindow
         var originalBody = preferences.BodyLineHeight;
         var originalOutline = preferences.OutlineLineHeight;
         var originalAlignment = preferences.DocumentAlignment;
+        var originalFont = preferences.FontFamily;
+        var font = new TextBox { Header = "한글 글꼴", Name = "FontFamily", Text = originalFont, MaxLength = 128, PlaceholderText = "Malgun Gothic / Batang / 설치된 글꼴 이름" };
         var bodySpacing = SpacingInput("본문 · 표 줄 높이", "BodyLineHeight", originalBody);
         var outlineSpacing = SpacingInput("목차 줄 높이", "OutlineLineHeight", originalOutline);
         var alignment = new ComboBox { Header = "문서 영역 배치", Name = "DocumentAlignment", HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -30,6 +32,8 @@ public sealed partial class MainWindow
         panel.Children.Add(new TextBlock { Text = "읽기 편한 문서 화면", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         panel.Children.Add(new TextBlock { Text = "변경 사항을 즉시 미리 봅니다. 저장하면 다음 실행에도 유지됩니다.", TextWrapping = TextWrapping.Wrap, Opacity = .65, FontSize = 12 });
         panel.Children.Add(bodySpacing);
+        panel.Children.Add(font);
+        panel.Children.Add(new TextBlock { Text = "설치된 글꼴 이름을 입력하세요. 본문·표·목차와 원문의 한글에 적용됩니다.", TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .65 });
         panel.Children.Add(new TextBlock { Text = "1.00–3.00배 · 글자 크기 기준. 제목·문단 여백은 유지됩니다.", FontSize = 12, Opacity = .65 });
         panel.Children.Add(alignment);
         panel.Children.Add(new TextBlock { Text = "문서 영역의 위치를 바꿉니다. 표의 열 정렬은 유지됩니다.", FontSize = 12, Opacity = .65 });
@@ -40,17 +44,19 @@ public sealed partial class MainWindow
         configurationDialog = dialog;
         void Preview()
         {
-            dialog.IsPrimaryButtonEnabled = double.IsFinite(bodySpacing.Value) && double.IsFinite(outlineSpacing.Value);
+            dialog.IsPrimaryButtonEnabled = double.IsFinite(bodySpacing.Value) && double.IsFinite(outlineSpacing.Value) && Preferences.ValidFontFamily(font.Text);
             if (!dialog.IsPrimaryButtonEnabled) return;
             preferences.BodyLineHeight = bodySpacing.Value;
             preferences.OutlineLineHeight = outlineSpacing.Value;
             preferences.DocumentAlignment = alignment.SelectedIndex == 0 ? "left" : "center";
+            preferences.FontFamily = font.Text.Trim();
             ApplyConfiguration();
         }
         bodySpacing.ValueChanged += (_, _) => Preview();
         outlineSpacing.ValueChanged += (_, _) => Preview();
         alignment.SelectionChanged += (_, _) => Preview();
-        reset.Click += (_, _) => { bodySpacing.Value = 1.95; outlineSpacing.Value = 2; alignment.SelectedIndex = 1; };
+        font.TextChanged += (_, _) => Preview();
+        reset.Click += (_, _) => { bodySpacing.Value = 1.95; outlineSpacing.Value = 2; alignment.SelectedIndex = 1; font.Text = "Malgun Gothic"; };
         var saved = false;
         try
         {
@@ -68,6 +74,7 @@ public sealed partial class MainWindow
             if (!saved)
             {
                 preferences.BodyLineHeight = originalBody; preferences.OutlineLineHeight = originalOutline; preferences.DocumentAlignment = originalAlignment;
+                preferences.FontFamily = originalFont;
                 ApplyConfiguration();
             }
         }

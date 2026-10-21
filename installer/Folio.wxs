@@ -1,0 +1,79 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="$(var.ProductName)" Manufacturer="Folio" Version="$(var.Version)" Language="1033"
+           UpgradeCode="$(var.UpgradeCode)" Scope="perUser" InstallerVersion="500">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Folio is already installed." Schedule="afterInstallInitialize" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Icon Id="AppIcon" SourceFile="$(var.Payload)\Assets\Folio.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/bryan-white-1/folio" />
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
+    <Property Id="INSTALLFOLDER">
+      <RegistrySearch Id="PreviousMsiDirectory" Root="HKCU" Key="Software\$(var.RegistryName)\MSI" Name="InstallLocation" Type="raw" />
+    </Property>
+    <Property Id="LEGACYINSTALL">
+      <RegistrySearch Id="LegacyInstall" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\$(var.LegacyKey)" Name="InstallLocation" Type="raw" />
+    </Property>
+    <Launch Condition="Installed OR NOT LEGACYINSTALL" Message="Save your work, close Folio, and uninstall the existing EXE edition in Windows Settings before installing this MSI. Your documents and settings are preserved." />
+    <Launch Condition="Installed OR VersionNT64" Message="Folio requires 64-bit Windows." />
+    <Property Id="WVUSER">
+      <RegistrySearch Id="WVUser" Root="HKCU" Key="Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw" Bitness="always32" />
+    </Property>
+    <Property Id="WVMACHINE">
+      <RegistrySearch Id="WVMachine" Root="HKLM" Key="Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw" Bitness="always32" />
+    </Property>
+    <Binary Id="WebViewSetup" SourceFile="$(var.Runtime)" />
+    <CustomAction Id="InstallWebView" BinaryRef="WebViewSetup" ExeCommand="/silent /install" Execute="deferred" Impersonate="yes" Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="InstallWebView" Before="InstallFiles" Condition="NOT REMOVE AND (NOT WVUSER OR WVUSER = &quot;0.0.0.0&quot;) AND (NOT WVMACHINE OR WVMACHINE = &quot;0.0.0.0&quot;)" />
+    </InstallExecuteSequence>
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="$(var.InstallName)" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppMenu" Name="$(var.ProductName)">
+        <Component Id="StartMenu">
+          <Shortcut Id="StartShortcut" Name="$(var.ProductName)" Target="[INSTALLFOLDER]Folio.exe" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
+          <RemoveFolder Id="RemoveMenu" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\$(var.RegistryName)\MSI" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="Desktop">
+        <Shortcut Id="DesktopShortcut" Name="$(var.ProductName)" Target="[INSTALLFOLDER]Folio.exe" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
+        <RegistryValue Root="HKCU" Key="Software\$(var.RegistryName)\MSI" Name="Desktop" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="Associations">
+        <RegistryValue Root="HKCU" Key="Software\Classes\$(var.RegistryName).Markdown" Type="string" Value="Markdown Document" KeyPath="yes" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\$(var.RegistryName).Markdown\DefaultIcon" Type="string" Value="&quot;[INSTALLFOLDER]Folio.exe&quot;,0" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\$(var.RegistryName).Markdown\shell\open\command" Type="string" Value="&quot;[INSTALLFOLDER]Folio.exe&quot; &quot;%1&quot;" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\.md\OpenWithProgids" Name="$(var.RegistryName).Markdown" Type="string" Value="" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\.markdown\OpenWithProgids" Name="$(var.RegistryName).Markdown" Type="string" Value="" />
+        <RegistryValue Root="HKCU" Key="Software\$(var.RegistryName)\Capabilities" Name="ApplicationName" Type="string" Value="$(var.ProductName)" />
+        <RegistryValue Root="HKCU" Key="Software\$(var.RegistryName)\Capabilities\FileAssociations" Name=".md" Type="string" Value="$(var.RegistryName).Markdown" />
+        <RegistryValue Root="HKCU" Key="Software\$(var.RegistryName)\Capabilities\FileAssociations" Name=".markdown" Type="string" Value="$(var.RegistryName).Markdown" />
+        <RegistryValue Root="HKCU" Key="Software\RegisteredApplications" Name="$(var.RegistryName)" Type="string" Value="Software\$(var.RegistryName)\Capabilities" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\SystemFileAssociations\.md\shell\$(var.RegistryName)" Type="string" Value="Edit with $(var.ProductName)" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\SystemFileAssociations\.md\shell\$(var.RegistryName)\command" Type="string" Value="&quot;[INSTALLFOLDER]Folio.exe&quot; &quot;%1&quot;" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\SystemFileAssociations\.markdown\shell\$(var.RegistryName)" Type="string" Value="Edit with $(var.ProductName)" />
+        <RegistryValue Root="HKCU" Key="Software\Classes\SystemFileAssociations\.markdown\shell\$(var.RegistryName)\command" Type="string" Value="&quot;[INSTALLFOLDER]Folio.exe&quot; &quot;%1&quot;" />
+      </Component>
+      <Component Id="InstallLocation">
+        <RegistryValue Root="HKCU" Key="Software\$(var.RegistryName)\MSI" Name="InstallLocation" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+    <Feature Id="App" Title="Folio editor" Level="1" AllowAbsent="no" AllowAdvertise="no">
+      <ComponentGroupRef Id="PayloadFiles" />
+      <ComponentRef Id="StartMenu" />
+      <ComponentRef Id="InstallLocation" />
+    </Feature>
+    <Feature Id="FileAssociations" Title="Markdown file integration" Description="Register Folio in Open with and Explorer. Existing default apps are preserved." Level="1" AllowAdvertise="no"><ComponentRef Id="Associations" /></Feature>
+    <Feature Id="DesktopIcon" Title="Desktop shortcut" Level="2" AllowAdvertise="no"><ComponentRef Id="Desktop" /></Feature>
+    <ui:WixUI Id="WixUI_FeatureTree" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.License)" />
+  </Package>
+</Wix>

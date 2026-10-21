@@ -274,5 +274,9 @@
   "이미지가 너무 큽니다": "The image is too large",
   "이미지 읽기 실패": "Could not read the image",
   "사용자 확인 실패": "Could not verify the current user",
-  "사용자 파이프 보안 설정 실패": "Could not secure the user activation pipe"
+  "사용자 파이프 보안 설정 실패": "Could not secure the user activation pipe",
+  "한글 글꼴": "Korean font",
+  "가나다라마바사 · 한글 문서 123": "Folio · Readable documents 123",
+  "설치된 글꼴 이름을 선택하거나 입력하세요. 본문·표·목차와 원문의 한글에 적용되며, 미설치 글꼴은 기본 글꼴로 표시됩니다.": "Choose or enter an installed font name. Applies to the document, tables, outline, and Korean text in Source. Unavailable fonts use the default font.",
+  "유효한 글꼴 이름을 입력하세요.": "Enter a valid font name."
 }

@@ -393,7 +393,7 @@ public sealed partial class MainWindow : Window
         { visible.Add(h.Id); var parent = h.ParentId; while (parent is not null) { visible.Add(parent); parent = headings.Find(x => x.Id == parent)?.ParentId; } }
         foreach (var h in headings.Where(h => visible.Contains(h.Id)))
         {
-            var label = new TextBlock { Text = h.Label.Length == 0 ? "(빈 제목)" : h.Label, Tag = h.Id, FontSize = 12, Height = 12 * preferences.OutlineLineHeight + 8, LineHeight = 12 * preferences.OutlineLineHeight, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(0, 4, 0, 4) };
+            var label = new TextBlock { Text = h.Label.Length == 0 ? "(빈 제목)" : h.Label, Tag = h.Id, FontFamily = new FontFamily(preferences.FontFamily), FontSize = 12, Height = 12 * preferences.OutlineLineHeight + 8, LineHeight = 12 * preferences.OutlineLineHeight, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(0, 4, 0, 4) };
             ToolTipService.SetToolTip(label, $"H{h.Depth} · {h.Label}");
             var menu = new MenuFlyout(); var rename = new MenuFlyoutItem { Text = "제목 이름 변경" }; rename.Click += async (_, _) => await Rename(h); menu.Items.Add(rename); label.ContextFlyout = menu;
             var node = new TreeViewNode { Content = label, IsExpanded = !collapsed.Contains(h.Id) || filter.Text.Length > 0 }; nodes[h.Id] = node;

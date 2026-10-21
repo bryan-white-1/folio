@@ -81,6 +81,7 @@ struct App {
         post(Json::object({{"type", "theme"}, {"value", prefs["Theme"]}}));
         post(Json::object({{"type", "configuration"},
                            {"bodyLineHeight", prefs["BodyLineHeight"]},
+                           {"fontFamily", prefs["FontFamily"]},
                            {"documentAlignment", prefs["DocumentAlignment"]}}));
         BOOL dark = prefs["Theme"].str() == "dark";
         DwmSetWindowAttribute(hwnd, 20, &dark, sizeof(dark));
@@ -532,7 +533,7 @@ struct App {
                 toast(clipboard(wide(text), html) ? "선택한 셀을 복사했습니다"
                                                   : "클립보드를 사용할 수 없습니다");
         } else if (type == "hostPreferences") {
-            for (auto key : {"BodyLineHeight", "OutlineLineHeight", "DocumentAlignment", "SidebarWidth", "Language"})
+            for (auto key : {"BodyLineHeight", "OutlineLineHeight", "DocumentAlignment", "FontFamily", "SidebarWidth", "Language"})
                 if (!m["preferences"][key].null())
                     prefs[key] = m["preferences"][key];
             normalizePreferences(prefs);
