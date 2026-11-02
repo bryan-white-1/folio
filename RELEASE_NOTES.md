@@ -1,4 +1,21 @@
-Updated: 2026-10-21 12:50 KST (UTC+09:00)
+Updated: 2026-11-02 17:57 KST (UTC+09:00)
+
+# Folio 0.2.5 — Project tabs and Text editing
+
+- **Project browsing:** open a folder, expand children on demand, and toggle excluded dependency/build directories. Linked directories are not expanded.
+- **Document tabs:** independent undo, selection and scroll positions; `Ctrl+W` to close, `Ctrl+Tab` to switch, and **Save all** / **Reload from disk** commands. Recovery and external-change checks cover all open documents.
+- **Text editing:** Python, JSON, Java, C, C++ and plain UTF-8 text with syntax highlighting, language selection, indentation, word wrap and `Ctrl+G`. Text saves preserve BOM, untouched mixed line endings, whitespace and missing final newlines. Syntax highlighting does not execute code.
+- **Editor contrast:** coordinated light/dark backgrounds for active tabs, Text, Markdown source and rendered documents, with clearer syntax colors.
+
+**Downloads:** Windows x64 online MSI and portable ZIP, SHA-256 checksums and MSI package manifest. MSI upgrades the previous MSI installation; close Folio before updating. Existing EXE installations must first be uninstalled. WebView2 is required; the online MSI downloads it only when missing. Packages are unsigned.
+
+**Validation:** 36 unit tests, native storage checks and 13 real-WebView2 integration scenarios passed, including system clipboard. Six refresh checks and six workspace scenarios passed. Isolated MSI installation, upgrade, repair, downgrade protection, installed-app integration and removal passed. The initial UI run passed 83/85; the complete 85/85 suite passed without code changes on rerun. Full results and installer coverage are recorded in [TEST_RESULTS.md](TEST_RESULTS.md).
+
+**Scope:** Native host; Legacy retains single-document Markdown editing. UTF-8 files up to 10 MiB; binary and unsupported encodings are rejected. Normal-exit session restoration is not included. See [test evidence](TEST_RESULTS.md) and [installation details](INSTALLER.md).
+
+[Changes since 0.2.4](https://github.com/bryan-white-1/folio/compare/v0.2.4...v0.2.5)
+
+---
 
 # Folio 0.2.4 — Windows MSI installer
 

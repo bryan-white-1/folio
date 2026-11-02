@@ -30,7 +30,12 @@ function Read-MsiProperty([string]$File, [string]$Name) {
     foreach ($object in @($record,$view,$database,$engine)) { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($object) }
     $value
 }
-$previous = '0.2.3'
+function Test-MsiInstalled([string]$ProductCode) {
+    $engine = New-Object -ComObject WindowsInstaller.Installer
+    try { $engine.ProductState($ProductCode) -eq 5 }
+    finally { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($engine) }
+}
+$previous = '0.2.4'
 & (Join-Path $PSScriptRoot 'Build-Msi.ps1') -AppDirectory $payload -Qa -PackageVersion $previous
 & (Join-Path $PSScriptRoot 'Build-Msi.ps1') -AppDirectory $payload -Qa
 $old = Join-Path $root "artifacts/Folio-Setup-$previous-win-x64-online-qa.msi"
@@ -46,7 +51,7 @@ try {
     $document = Join-Path $install 'user-document.md'
     [IO.File]::WriteAllText($document, '# Keep this document')
     Run-Msi @('/i',('"' + $current + '"'),('INSTALLFOLDER="' + $install + '"'),'ADDLOCAL=ALL') 'major-upgrade'
-    Check (!(Test-Path "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/$oldCode")) 'Previous MSI product removed on upgrade'
+    Check (!(Test-MsiInstalled $oldCode)) 'Previous MSI product removed on upgrade'
     foreach ($file in Get-ChildItem -LiteralPath $payload -File -Recurse) {
         $relative = [IO.Path]::GetRelativePath($payload, $file.FullName)
         if ((Get-FileHash -LiteralPath $file.FullName).Hash -ne (Get-FileHash -LiteralPath (Join-Path $install $relative)).Hash) { throw "Installed file mismatch: $relative" }
@@ -67,6 +72,7 @@ try {
     $results.Add('Installed app real WebView2 integration passed')
     Run-Msi @('/x',$currentCode) 'uninstall'
     $registered = $false
+    Check (!(Test-MsiInstalled $currentCode)) 'Uninstall removes Windows Installer product registration'
     Check (!(Test-Path (Join-Path $install 'Folio.exe'))) 'Uninstall removes app binary'
     Check ((Get-Content -LiteralPath $document -Raw) -eq '# Keep this document') 'Uninstall preserves user document'
     Check (!(Test-Path $shortcut) -and !(Test-Path $desktop)) 'Uninstall removes shortcuts'
@@ -76,7 +82,7 @@ try {
     if ($registered) {
         # Only these generated QA product codes may be removed, never the user's Folio installation.
         foreach ($code in @($currentCode,$oldCode)) {
-            if (Test-Path "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/$code") { Run-Msi @('/x',$code) 'cleanup' }
+            if (Test-MsiInstalled $code) { Run-Msi @('/x',$code) 'cleanup' }
         }
     }
 }

@@ -4,20 +4,20 @@ import { defaultHandlers } from 'mdast-util-to-markdown';
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInBulletListCommand, wrapInBlockquoteCommand, createCodeBlockCommand } from '@milkdown/kit/preset/commonmark';
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/kit/preset/gfm';
 import { $prose, callCommand, getMarkdown, replaceAll, insert } from '@milkdown/kit/utils';
-import { AllSelection, Plugin, TextSelection, type Selection, type Command } from '@milkdown/kit/prose/state';
+import { AllSelection, Plugin, TextSelection, Selection, type Command } from '@milkdown/kit/prose/state';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { GapCursor, gapCursor } from '@milkdown/kit/prose/gapcursor';
 import { createParagraphNear } from '@milkdown/kit/prose/commands';
 import '@milkdown/kit/prose/gapcursor/style/gapcursor.css';
 import type { EditorView as ProseEditorView } from '@milkdown/kit/prose/view';
 import { columnResizing, columnResizingPluginKey, CellSelection, goToNextCell } from '@milkdown/kit/prose/tables';
-import { EditorState } from '@codemirror/state';
+import { EditorState, Compartment } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle, indentUnit, bracketMatching } from '@codemirror/language';
 import { search, searchKeymap, openSearchPanel } from '@codemirror/search';
-import { analyze, codeBlocks, DocumentModel, type Heading } from './document';
+import { analyze, codeBlocks, DocumentModel, type Heading, type TextChange } from './document';
 import { codeBlockView } from './mermaid-node-view';
 import { refreshDiagrams } from './mermaid-renderer';
 import { dismissDiagramViewer } from './mermaid-viewer';
@@ -38,6 +38,9 @@ import { installImageClipboard } from './image-clipboard';
 import { RenderedSearch, renderedSearchPlugin } from './rendered-search';
 import { installNativeShell } from './native-shell';
 import { applyFontFamily } from './font-settings';
+import { tags } from '@lezer/highlight';
+import { documentKind, detectLanguage, languageExtension, languages, languageLabels, type TextLanguage } from './text-language';
+import './workspace.css';
 
 type HostPacket = { type: string; [key: string]: any };
 type WebViewBridge = { postMessage(data: unknown): void; addEventListener(type: string, cb: (event: MessageEvent<HostPacket>) => void): void };
@@ -48,7 +51,13 @@ document.documentElement.lang = language;
 translateUi(document.body);
 installNativeShell(bridge);
 document.documentElement.dataset.host = bridge ? 'windows' : 'browser';
-const model = new DocumentModel();
+let model = new DocumentModel();
+let kind: 'markdown' | 'text' = 'markdown';
+let textLanguage: TextLanguage = 'markdown', languageOverride = false, wrap = true, indentation = '    ';
+let fileBom = false, fileNewline = '\n';
+const languageConfig = new Compartment(), wrapConfig = new Compartment(), indentConfig = new Compartment();
+type Session = { model: DocumentModel; mode: 'rendered' | 'source'; kind: 'markdown' | 'text'; language: TextLanguage; override: boolean; wrap: boolean; indentation: string; source: EditorState; rendered: ReturnType<Selection['toJSON']> | null; scroll: number; sourceTop: number; sourceLeft: number };
+const sessions = new Map<string, Session>();
 let documentId = 'welcome';
 let mode: 'rendered' | 'source' = 'rendered';
 let editor: Editor;
@@ -64,38 +73,93 @@ let updateTimer: ReturnType<typeof setTimeout>;
 let lastHeadingId: string | null = null;
 let cachedRevision = -1;
 let cachedAnalysis: ReturnType<typeof analyze>;
-function analysis() { if (cachedRevision !== model.revision) { cachedAnalysis = analyze(model.text); cachedRevision = model.revision; } return cachedAnalysis; }
+function analysis() { if (kind === 'text') return { headings: [], protectedReason: null, images: [] }; if (cachedRevision !== model.revision) { cachedAnalysis = analyze(model.text); cachedRevision = model.revision; } return cachedAnalysis; }
 const send = (packet: HostPacket) => bridge?.postMessage({ ...packet, documentId });
-const snapshot = () => ({ text: model.text, revision: model.revision, dirty: model.dirty, documentId, images: analysis().images });
+const snapshot = () => ({ text: model.fileText(), revision: model.revision, dirty: model.dirty, documentId, images: analysis().images, kind, language: textLanguage, languageOverride, wrap, indentation });
 
+const sourceHighlight = HighlightStyle.define([
+  ...defaultHighlightStyle.specs,
+  { tag: tags.keyword, color: 'var(--syntax-keyword)' },
+  { tag: [tags.string, tags.special(tags.string)], color: 'var(--syntax-string)' },
+  { tag: [tags.comment, tags.meta], color: 'var(--syntax-comment)' },
+  { tag: [tags.number, tags.bool, tags.null], color: 'var(--syntax-number)' },
+  { tag: [tags.function(tags.variableName), tags.definition(tags.variableName), tags.typeName, tags.className], color: 'var(--syntax-function)' },
+  { tag: [tags.propertyName, tags.attributeName], color: 'var(--syntax-property)' },
+]);
 const source = new EditorView({
   parent: $('source-editor'),
   state: EditorState.create({ extensions: [
-    lineNumbers(), highlightActiveLine(), drawSelection(), markdown(), syntaxHighlighting(defaultHighlightStyle), search(),
-    keymap.of([...defaultKeymap, indentWithTab, ...searchKeymap]), EditorView.lineWrapping,
+    lineNumbers(), highlightActiveLine(), drawSelection(), languageConfig.of(markdown()), bracketMatching(), indentConfig.of(indentUnit.of(indentation)), syntaxHighlighting(sourceHighlight), search(),
+    keymap.of([...defaultKeymap, indentWithTab, ...searchKeymap]), wrapConfig.of(EditorView.lineWrapping),
     EditorView.contentAttributes.of({ 'aria-label': t('Markdown 원문'), spellcheck: 'false' }),
     EditorView.updateListener.of(update => {
       if (syncing) return;
-      if (update.docChanged) { model.change(update.state.doc.toString(), 'source', update.state.selection.main.head); schedulePublish(); }
+      if (update.docChanged) { const changes: TextChange[] = []; update.changes.iterChanges((from, to, _a, _b, insert) => changes.push({ from, to, insert: insert.toString() })); model.change(update.state.doc.toString(), 'source', update.state.selection.main.head, Date.now(), changes); schedulePublish(); }
       if (update.selectionSet) { model.cursor = update.state.selection.main.head; selectHeading(model.cursor); }
-      formatToolbar?.update(); updateCommandButtons();
+      if (kind === 'markdown') formatToolbar?.update(); updateCommandButtons(); updateTextStatus();
     }),
   ] }),
 });
+
+const textTools = document.createElement('div'); textTools.className = 'text-tools'; textTools.hidden = true;
+const languageSelect = document.createElement('select'); languageSelect.setAttribute('aria-label', t('구문 강조 언어'));
+for (const value of languages) { const option = document.createElement('option'); option.value = value; option.textContent = languageLabels[value]; languageSelect.append(option); }
+const wrapButton = document.createElement('button'); wrapButton.textContent = t('자동 줄바꿈');
+const indentSelect = document.createElement('select'); indentSelect.setAttribute('aria-label', t('들여쓰기'));
+for (const [value, label] of [['  ', 'Spaces: 2'], ['    ', 'Spaces: 4'], ['\t', 'Tab']]) { const option = document.createElement('option'); option.value = value; option.textContent = label; indentSelect.append(option); }
+const lineButton = document.createElement('button'); lineButton.textContent = t('줄 이동');
+const textUndo = document.createElement('button'), textRedo = document.createElement('button');
+textUndo.textContent = '↶'; textUndo.title = t('실행 취소 (Ctrl+Z)'); textUndo.setAttribute('aria-label', textUndo.title); textUndo.onclick = () => void history();
+textRedo.textContent = '↷'; textRedo.title = t('다시 실행 (Ctrl+Y)'); textRedo.setAttribute('aria-label', textRedo.title); textRedo.onclick = () => void history(true);
+textTools.append(languageSelect, indentSelect, textUndo, textRedo, wrapButton, lineButton); document.querySelector('.format-bar')!.prepend(textTools);
+const textStatus = document.createElement('span'); textStatus.id = 'text-status'; textStatus.hidden = true; $('stats').after(textStatus);
+function configureDocument() {
+  document.documentElement.dataset.documentKind = kind;
+  textTools.hidden = kind !== 'text'; textStatus.hidden = kind !== 'text';
+  document.querySelector<HTMLElement>('.format-tools')!.hidden = kind === 'text';
+  document.querySelector<HTMLElement>('.mode-switch')!.hidden = kind === 'text';
+  $('rendered-editor').hidden = mode !== 'rendered'; $('source-editor').hidden = mode !== 'source';
+  $('rendered-mode').setAttribute('aria-selected', String(mode === 'rendered')); $('source-mode').setAttribute('aria-selected', String(mode === 'source'));
+  languageSelect.value = textLanguage; indentSelect.value = indentation; wrapButton.setAttribute('aria-pressed', String(wrap));
+  source.dispatch({ effects: [languageConfig.reconfigure(languageExtension(textLanguage)), wrapConfig.reconfigure(wrap ? EditorView.lineWrapping : []), indentConfig.reconfigure(indentUnit.of(indentation))] });
+  source.contentDOM.setAttribute('aria-label', t(kind === 'text' ? 'Text 편집' : 'Markdown 원문'));
+  const footerType = document.querySelector<HTMLElement>('#app > footer .footer-separator + span');
+  if (footerType) footerType.textContent = kind === 'text' ? 'Text' : 'Markdown';
+  updateTextStatus();
+}
+function updateTextStatus() {
+  if (kind !== 'text') return;
+  const pos = source.state.selection.main.head, line = source.state.doc.lineAt(pos);
+  const endings = new Set(model.endings);
+  const eol = endings.size > 1 ? 'Mixed' : (model.endings[0] ?? fileNewline) === '\r\n' ? 'CRLF' : (model.endings[0] ?? fileNewline) === '\r' ? 'CR' : 'LF';
+  textStatus.textContent = `Ln ${line.number}, Col ${pos - line.from + 1} · ${eol}`;
+  document.querySelector<HTMLElement>('#app > footer .encoding')!.textContent = fileBom ? 'UTF-8 BOM' : 'UTF-8';
+}
+languageSelect.onchange = () => { textLanguage = languageSelect.value as TextLanguage; languageOverride = true; configureDocument(); publish(); };
+wrapButton.onclick = () => { wrap = !wrap; configureDocument(); publish(); };
+indentSelect.onchange = () => { indentation = indentSelect.value; configureDocument(); publish(); };
+lineButton.onclick = () => {
+  const dialog = document.createElement('dialog'); const form = document.createElement('form'); form.method = 'dialog';
+  const label = document.createElement('label'); label.textContent = t('줄 번호'); const input = document.createElement('input'); input.type = 'number'; input.min = '1'; input.max = String(source.state.doc.lines); input.value = String(source.state.doc.lineAt(source.state.selection.main.head).number); input.required = true; label.append(input);
+  const button = document.createElement('button'); button.textContent = t('이동'); button.className = 'primary'; form.append(label, button); dialog.append(form); document.body.append(dialog);
+  form.onsubmit = () => { const line = source.state.doc.line(Number(input.value)); source.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: 'center' }) }); };
+  dialog.onclose = () => { dialog.remove(); source.focus(); }; dialog.showModal(); input.select();
+};
 
 function schedulePublish() { clearTimeout(updateTimer); updateChrome(); updateTimer = setTimeout(publish, 140); }
 function updateChrome() {
   $('dirty-dot').classList.toggle('visible', model.dirty);
   ($('undo') as HTMLButtonElement).disabled = !model.canUndo;
   ($('redo') as HTMLButtonElement).disabled = !model.canRedo;
+  textUndo.disabled = !model.canUndo; textRedo.disabled = !model.canRedo;
   $('stats').textContent = tr`${model.text.length.toLocaleString()}자 · ${model.text.split('\n').length.toLocaleString()}줄`;
-  formatToolbar?.update();
-  updateCommandButtons();
+  if (kind === 'markdown') formatToolbar?.update();
+  updateTextStatus(); updateCommandButtons();
 }
 function publish() {
   ({ headings } = analysis());
   updateChrome();
-  send({ type: 'changed', ...snapshot(), headings });
+  send({ type: 'changed', ...snapshot(), mode, cursor: model.cursor, headings });
   selectHeading(model.cursor);
 }
 function selectHeading(position: number) {
@@ -119,6 +183,7 @@ function flushRendered() {
   model.change(text, 'rendered', renderedCursor()); baseline = doc; schedulePublish();
 }
 function refreshRendered() {
+  if (kind === 'text') return;
   syncing = true;
   try {
     editor.action(replaceAll(model.text));
@@ -142,7 +207,7 @@ async function settleComposition() {
   });
 }
 async function switchMode(next: typeof mode) {
-  if (mode === next) return;
+  if (kind === 'text' || mode === next) return;
   renderedSearch?.close(false);
   formatToolbar?.close();
   await settleComposition(); flushRendered(); model.breakGroup();
@@ -205,6 +270,7 @@ function insertSource(before: string, after = '') {
   source.dispatch({ changes: { from: range.from, to: range.to, insert: before + text + after }, selection: { anchor: range.from + before.length, head: range.from + before.length + text.length } }); source.focus();
 }
 async function command(name: string) {
+  if (kind === 'text') return;
   if (name === 'table') { await formatToolbar?.open('insert', document.querySelector<HTMLElement>('[data-command="table"]')!); return; }
   await settleComposition();
   if (name === 'image') {
@@ -232,7 +298,7 @@ async function command(name: string) {
 function toast(message: string) { $('toast').textContent = message; $('toast').hidden = false; setTimeout(() => $('toast').hidden = true, 3200); }
 
 function updateCommandButtons() {
-  if (!editor) return;
+  if (!editor || kind === 'text') return;
   const range = source.state.selection.main;
   const active = mode === 'source' ? sourceCodeBlocks(model.text, range.from, range.to).length > 0 : editor.action(ctx => selectedCodeBlocks(ctx.get(editorViewCtx).state).length > 0);
   const button = document.querySelector<HTMLButtonElement>('[data-command="code"]')!;
@@ -292,6 +358,7 @@ function syncRenderedTextSelection(view: ProseEditorView) {
   }
 }
 async function beginImageRequest() {
+  if (kind === 'text') return undefined;
   if (!bridge) { toast(t('이미지 파일 삽입은 Windows 앱에서 사용할 수 있습니다')); return; }
   if (pendingImage) { toast(t('이미지 삽입이 끝난 뒤 다시 시도하세요.')); return; }
   await prepareFormat();
@@ -327,6 +394,7 @@ function formatStatus() {
     canInsert: mode === 'source' ? sourceTableInsertionAllowed(model.text, range.from, range.to) : heading.enabled && state.selection.$from.depth >= 1 && state.selection.$from.node(-1).canReplaceWith(state.selection.$from.index(-1), state.selection.$from.indexAfter(-1), state.schema.nodes.table) };
 }
 async function applyHeading(level: number, target?: FormatTarget) {
+  if (kind === 'text') return;
   await prepareFormat();
   if (target && !restoreFormat(target)) return;
   model.breakGroup();
@@ -424,19 +492,47 @@ const syncPlugin = $prose(() => new Plugin({
 
 async function receive(packet: HostPacket) {
   switch (packet.type) {
-    case 'load':
-      pendingImage = null;
-      renderedSearch?.close(false, true);
-      formatToolbar?.close();
-      await settleComposition();
+    case 'load': {
+      pendingImage = null; renderedSearch?.close(false, true); formatToolbar?.close();
+      await settleComposition(); flushRendered(); clearTimeout(updateTimer); model.breakGroup();
+      if (packet.session) sessions.set(documentId, { model, mode, kind, language: textLanguage, override: languageOverride, wrap, indentation, source: source.state,
+        rendered: kind === 'markdown' ? editor.action(ctx => ctx.get(editorViewCtx).state.selection.toJSON()) : null,
+        scroll: $('editor-scroll').scrollTop, sourceTop: source.scrollDOM.scrollTop, sourceLeft: source.scrollDOM.scrollLeft });
       dismissDiagramViewer(); refreshDiagrams(true);
-      documentId = packet.documentId; model.load(packet.text, packet.dirty); $('document-name').textContent = packet.name;
-      lastHeadingId = null; publish(); refreshSource(); refreshRendered(); $('editor-scroll').scrollTop = 0; break;
+      documentId = packet.documentId; cachedRevision = -1;
+      const previous = packet.resume ? sessions.get(documentId) : undefined;
+      kind = previous?.kind ?? packet.kind ?? (packet.session || !bridge ? documentKind(packet.name) : 'markdown');
+      textLanguage = previous?.language ?? (languages.includes(packet.language) ? packet.language : detectLanguage(packet.name));
+      languageOverride = previous?.override ?? !!packet.languageOverride;
+      wrap = previous?.wrap ?? packet.wrap ?? kind === 'markdown'; indentation = previous?.indentation ?? packet.indentation ?? '    ';
+      fileBom = !!packet.bom; fileNewline = packet.newline ?? '\n';
+      mode = previous?.mode ?? (kind === 'text' ? 'source' : packet.mode ?? 'rendered');
+      model = previous?.model ?? new DocumentModel(); model.preserveEndings = kind === 'text';
+      if (!previous) { model.load(packet.text, packet.dirty); model.cursor = Math.min(packet.cursor ?? 0, model.text.length); }
+      $('document-name').textContent = packet.name;
+      syncing = true; if (previous) source.setState(previous.source); syncing = false;
+      configureDocument();
+      if (!previous) refreshSource();
+      refreshRendered();
+      if (previous?.rendered && kind === 'markdown') editor.action(ctx => {
+        const view = ctx.get(editorViewCtx);
+        try { view.dispatch(view.state.tr.setSelection(Selection.fromJSON(view.state.doc, previous.rendered))); } catch { /* changed schema: retain document */ }
+      });
+      lastHeadingId = null; publish();
+      $('editor-scroll').scrollTop = previous?.scroll ?? 0;
+      source.scrollDOM.scrollTop = previous?.sourceTop ?? 0; source.scrollDOM.scrollLeft = previous?.sourceLeft ?? 0;
+      if (mode === 'source') source.focus();
+      send({ type: 'loaded' }); break;
+    }
+    case 'discardSession': sessions.delete(packet.id); break;
     case 'saved':
       if (packet.documentId !== documentId) return;
-      model.markSaved(packet.text); $('document-name').textContent = packet.name; publish(); toast(t('문서를 저장했습니다')); break;
+      model.markSaved(packet.text); $('document-name').textContent = packet.name;
+      if (packet.kind && kind !== packet.kind) { await settleComposition(); flushRendered(); kind = packet.kind; model.preserveEndings = kind === 'text'; if (kind === 'text') { mode = 'source'; model.endings = (packet.fileText ?? packet.text).match(/\r\n|\r|\n/g) ?? []; model.newline = packet.newline ?? '\n'; model.revision++;  } model.markSaved(kind === 'text' ? packet.fileText ?? packet.text : packet.text); }
+      if (!languageOverride) textLanguage = detectLanguage(packet.name);
+      configureDocument(); publish(); toast(t('문서를 저장했습니다')); break;
     case 'snapshot':
-      await settleComposition(); flushRendered(); publish(); send({ type: 'snapshot', requestId: packet.requestId, ...snapshot() }); break;
+      await settleComposition(); flushRendered(); publish(); send({ type: 'snapshot', requestId: packet.requestId, ...snapshot(), mode, cursor: model.cursor }); break;
     case 'jump': await jump(packet.id); break;
     case 'theme': document.documentElement.dataset.theme = packet.value; refreshDiagrams(); break;
     case 'configuration': {
@@ -514,7 +610,8 @@ async function start() {
     }),
   });
   formatToolbar.update();
-  bridge?.addEventListener('message', event => { void receive(event.data).catch(error => { console.error(error); toast(t('요청을 처리하지 못했습니다. 원문을 확인해주세요.')); }); });
+  let messages = Promise.resolve();
+  bridge?.addEventListener('message', event => { messages = messages.then(() => receive(event.data)).catch(error => { console.error(error); toast(t('요청을 처리하지 못했습니다. 원문을 확인해주세요.')); }); });
   window.folio = { receive, snapshot: () => { flushRendered(); return snapshot(); } };
   send({ type: 'ready' });
 }
@@ -575,16 +672,16 @@ document.addEventListener('keydown', e => {
     }
   }
   if (!(e.ctrlKey || e.metaKey)) return;
-  if (inEditor && e.altKey && /^[0-6]$/.test(e.key)) { e.preventDefault(); e.stopImmediatePropagation(); void applyHeading(Number(e.key)); return; }
+  if (kind === 'markdown' && inEditor && e.altKey && /^[0-6]$/.test(e.key)) { e.preventDefault(); e.stopImmediatePropagation(); void applyHeading(Number(e.key)); return; }
   if (e.target instanceof Element && e.target.closest('.format-popover')) return;
   const key = e.key.toLowerCase();
-  if (inEditor && e.altKey && key === 'c') { e.preventDefault(); e.stopImmediatePropagation(); void command('code'); return; }
+  if (kind === 'markdown' && inEditor && e.altKey && key === 'c') { e.preventDefault(); e.stopImmediatePropagation(); void command('code'); return; }
   const native: Record<string, string> = { s: e.shiftKey ? 'saveAs' : 'save', o: e.shiftKey ? 'recent' : 'open', n: 'new' };
   if (native[key]) { e.preventDefault(); e.stopImmediatePropagation(); send({ type: 'command', name: native[key] }); if (!bridge) toast(t('파일 열기·저장은 Windows 앱에서 사용할 수 있습니다')); }
   else if (key === 'z' || key === 'y') { e.preventDefault(); e.stopImmediatePropagation(); void history(key === 'y' || e.shiftKey); }
   else if (key === 'm' && e.shiftKey) { e.preventDefault(); void switchMode(mode === 'source' ? 'rendered' : 'source'); }
   else if (key === 'f') { e.preventDefault(); e.stopImmediatePropagation(); void receive({ type: 'find' }); }
-  else if (['b', 'i'].includes(key)) { e.preventDefault(); e.stopImmediatePropagation(); void command(key === 'b' ? 'bold' : 'italic'); }
+  else if (kind === 'markdown' && ['b', 'i'].includes(key)) { e.preventDefault(); e.stopImmediatePropagation(); void command(key === 'b' ? 'bold' : 'italic'); }
 }, true);
 function selectContextCell(event: MouseEvent) {
   if (mode !== 'rendered' || !(event.target instanceof Element)) return false;

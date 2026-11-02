@@ -4,18 +4,20 @@
 #include <dwmapi.h>
 #include <fstream>
 constexpr UINT DispatchMessageId = WM_APP + 2;
-struct App {
+#include "workspace.h"
+struct App : DocumentState {
     Activation &broker;
     HWND hwnd = nullptr;
     Com<ICoreWebView2Environment> env;
     Com<ICoreWebView2Controller> controller;
     Com<ICoreWebView2> web;
-    Json prefs = loadPreferences(),
-         current = Json::object({{"text", ""}, {"revision", 0}, {"dirty", false}, {"documentId", "welcome"}}),
-         headings = Json::Array{};
-    fs::path path;
-    std::string fileHash, lastExternal, newline = "\n", original, documentId = "welcome", assetId = guid();
-    bool bom = false, ready = false, busy = false, closing = false, startupComplete = false;
+    Json prefs = loadPreferences();
+    bool ready = false, busy = false, closing = false, startupComplete = false;
+    std::map<std::string, DocumentState> documents;
+    std::vector<std::string> tabOrder;
+    fs::path workspaceRoot;
+    std::function<void()> loaded;
+    ULONGLONG loadDeadline = 0;
     std::wstring startup;
     std::deque<std::wstring> activations;
     struct Pending {
@@ -23,6 +25,7 @@ struct App {
         std::function<void(Json)> done;
     };
     std::map<std::string, Pending> snapshots, dialogs;
+#include "workspace.inc"
     explicit App(std::wstring p, Activation &a) : broker(a), startup(std::move(p)) {}
     void defer(std::function<void()> fn) {
         auto p = std::make_unique<std::function<void()>>(std::move(fn));
@@ -68,14 +71,15 @@ struct App {
         return path.empty() ? dataDirectory() / L"drafts" / wide(assetId) / L"document.md" : path;
     }
     void status() {
-        auto name = path.empty() ? tr("제목 없음.md") : utf8(path.filename().wstring());
+        park();
+        auto name = documentName();
         SetWindowTextW(hwnd, wide((current["dirty"].boolean() ? "● " : "") + name + " — Folio").c_str());
         post(Json::object({{"type", "hostState"},
                            {"path", utf8(path.wstring())},
                            {"name", name},
                            {"dirty", current["dirty"]},
                            {"headings", headings},
-                           {"preferences", prefs}}));
+                           {"preferences", prefs}, {"documentId", documentId}, {"kind", textMode ? "text" : "markdown"}, {"tabs", tabs()}, {"root", utf8(workspaceRoot.wstring())}}));
     }
     void configuration() {
         post(Json::object({{"type", "theme"}, {"value", prefs["Theme"]}}));
@@ -88,34 +92,33 @@ struct App {
         status();
     }
     void load(std::string text, bool dirty) {
-        documentId = guid();
-        assetId = guid();
-        current =
-            Json::object({{"text", text}, {"revision", 0}, {"dirty", dirty}, {"documentId", documentId}});
+        documentId = guid(); assetId = guid();
+        current = Json::object({{"text", text}, {"revision", 0}, {"dirty", dirty}, {"documentId", documentId}});
         headings = Json::Array{};
-        post(Json::object({{"type", "load"},
-                           {"text", text},
-                           {"dirty", dirty},
-                           {"documentId", documentId},
-                           {"name", path.empty() ? tr("제목 없음.md") : utf8(path.filename().wstring())}}));
-        status();
+        displayDocument(false);
     }
-    void clearRecovery() {
-        std::error_code ec;
-        fs::remove(dataDirectory() / L"recovery.json", ec);
-        if (ec)
-            throw std::runtime_error("복구 기록 정리 실패");
-    }
+    void clearRecovery() { recovery(); }
     void recovery() {
-        if (!ready || !current["dirty"].boolean())
+        if (!ready) return;
+        park();
+        Json::Array entries;
+        for (const auto &id : tabOrder) {
+            auto &d = documents.at(id);
+            if (!d.current["dirty"].boolean()) continue;
+            Json metadata = d.current; metadata["text"] = Json();
+            entries.push_back(Json::object({{"Path", utf8(d.path.wstring())}, {"Text", d.current["text"]},
+                {"Fingerprint", d.fileHash}, {"NewLine", d.newline}, {"Bom", d.bom}, {"AssetId", d.assetId},
+                {"TextMode", d.textMode}, {"Snapshot", metadata}, {"SavedAt", timestamp()}}));
+        }
+        if (entries.empty()) {
+            std::error_code ec; fs::remove(dataDirectory() / L"recovery.json", ec);
+            if (ec) throw std::runtime_error("복구 기록 정리 실패");
             return;
-        auto j = Json::object({{"Path", path.empty() ? Json() : Json(utf8(path.wstring()))},
-                               {"Text", current["text"]},
-                               {"Fingerprint", fileHash.empty() ? Json() : Json(fileHash)},
-                               {"NewLine", newline},
-                               {"Bom", bom},
-                               {"SavedAt", timestamp()},
-                               {"AssetId", path.empty() ? Json(assetId) : Json()}});
+        }
+        // Retain the previous top-level fields for migration and diagnostics.
+        Json j = entries.back();
+        for (auto &e : entries) if (e["Snapshot"]["documentId"].str() == documentId) j = e;
+        j["Documents"] = entries; j["Version"] = 2; j["Root"] = utf8(workspaceRoot.wstring());
         atomicWrite(dataDirectory() / L"recovery.json", j.dump());
     }
     void begin() {
@@ -126,7 +129,7 @@ struct App {
         }
         Json r;
         try {
-            r = Json::parse(readBytes(dataDirectory() / L"recovery.json"));
+            r = Json::parse(readBytes(dataDirectory() / L"recovery.json", 512 * 1024 * 1024));
         } catch (...) {
         }
         auto next = [this] {
@@ -134,6 +137,7 @@ struct App {
             if (!startup.empty())
                 execute("openPath", utf8(startup));
         };
+        if (!r["Documents"].array().empty()) { recoverDocuments(r, next); return; }
         if (!r["Text"].null())
             ask("저장하지 않은 문서", tr("이전 실행에서 저장하지 않은 문서가 있습니다."),
                 {"복구", "삭제", "앱 닫기"}, [this, r, next](int choice) {
@@ -144,6 +148,7 @@ struct App {
                             newline = r["NewLine"].str("\n");
                             bom = r["Bom"].boolean();
                             original = "";
+                            textMode = !path.empty() && !markdownPath(path);
                             load(r["Text"].str(), true);
                             auto a = r["AssetId"].str();
                             if (a.size() == 32 &&
@@ -163,17 +168,16 @@ struct App {
             next();
     }
     void open(const std::string &name) {
-        auto f = openDocument(wide(name));
-        path = f.path;
-        fileHash = f.fingerprint;
-        lastExternal = fileHash;
-        newline = f.newline;
-        bom = f.bom;
-        original = f.text;
-        load(f.text, false);
-        remember(prefs, path);
-        clearRecovery();
-        status();
+        auto target = full(wide(name));
+        for (auto &[id, d] : documents) if (!d.path.empty() && same(d.path, target)) {
+            activate(id); return;
+        }
+        auto f = openDocument(target); // Read first: failures never replace an open buffer.
+        park(); static_cast<DocumentState &>(*this) = DocumentState{};
+        path = f.path; fileHash = f.fingerprint; lastExternal = fileHash;
+        newline = f.newline; bom = f.bom; original = f.text; textMode = !markdownPath(path);
+        if (workspaceRoot.empty()) workspaceRoot = path.parent_path();
+        remember(prefs, path); load(f.text, false); recovery();
     }
     std::optional<fs::path> pick(bool save, bool image = false) {
         Com<IFileDialog> dialog;
@@ -185,8 +189,8 @@ struct App {
             hrcheck(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
                                      __uuidof(IFileOpenDialog), (void **)dialog.put()),
                     "열기 창 생성 실패");
-        auto docLabel = wide(tr("Markdown 문서")), allLabel = wide(tr("모든 파일")), imageLabel = wide(tr("이미지"));
-        COMDLG_FILTERSPEC docs[] = {{docLabel.c_str(), L"*.md;*.markdown;*.txt"}, {allLabel.c_str(), L"*.*"}};
+        auto docLabel = wide(tr("텍스트 파일")), allLabel = wide(tr("모든 파일")), imageLabel = wide(tr("이미지"));
+        COMDLG_FILTERSPEC docs[] = {{docLabel.c_str(), L"*.*"}, {allLabel.c_str(), L"*.*"}};
         COMDLG_FILTERSPEC images[] = {{imageLabel.c_str(), L"*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp"}};
         dialog->SetTitle(wide(tr(save ? "다른 이름으로 저장" : image ? "이미지 삽입" : "열기")).c_str());
         dialog->SetOkButtonLabel(wide(tr(save ? "저장" : "열기")).c_str());
@@ -196,8 +200,8 @@ struct App {
         dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR |
                            (save ? FOS_OVERWRITEPROMPT : FOS_FILEMUSTEXIST));
         if (save) {
-            dialog->SetDefaultExtension(L"md");
-            dialog->SetFileName(path.empty() ? wide(tr("새 문서.md")).c_str() : path.filename().c_str());
+            dialog->SetDefaultExtension(textMode ? L"txt" : L"md");
+            dialog->SetFileName(path.empty() ? wide(tr(textMode ? "새 문서.txt" : "새 문서.md")).c_str() : path.filename().c_str());
         }
         if (!path.empty()) {
             Com<IShellItem> dir;
@@ -224,12 +228,15 @@ struct App {
                     return;
                 }
                 auto target = *chosen;
+                for (auto &[id, d] : documents) if (id != documentId && !d.path.empty() && same(d.path, target)) {
+                    toast("이미 열린 파일입니다. 해당 탭에서 저장하세요."); done(false); return;
+                }
                 auto disk = fingerprint(target);
                 bool sameFile = !path.empty() && same(path, target);
                 auto commit = [this, s, target, disk, sameFile, done] {
                     safe([&] {
                         if (!(sameFile && !s["dirty"].boolean() && disk == fileHash)) {
-                            if (!sameFile) {
+                            if (!sameFile && !textMode) {
                                 Json images = s["images"];
                                 Json::Array list = images.array();
                                 auto dir = imageDocument().parent_path() / L"assets";
@@ -240,14 +247,14 @@ struct App {
                                                            utf8(entry.path().filename().wstring()));
                                 copyImages(imageDocument(), target, list);
                             }
-                            bool preserve = !s["dirty"].boolean() && !original.empty();
-                            fileHash = saveDocument(target, preserve ? original : s["text"].str(), newline,
+                            bool preserve = textMode || (!s["dirty"].boolean() && !original.empty());
+                            fileHash = saveDocument(target, textMode ? s["text"].str() : preserve ? original : s["text"].str(), newline,
                                                     bom, disk, preserve);
                         }
                         path = target;
                         if (s["dirty"].boolean() || original.empty()) {
-                            original = normalize(s["text"].str());
-                            if (newline == "\r\n") {
+                            original = textMode ? s["text"].str() : normalize(s["text"].str());
+                            if (!textMode && newline == "\r\n") {
                                 std::string t;
                                 for (char c : original) {
                                     if (c == '\n')
@@ -257,12 +264,13 @@ struct App {
                                 original = t;
                             }
                         }
+                        textMode = !markdownPath(path);
                         lastExternal = fileHash;
                         remember(prefs, path);
                         post(Json::object({{"type", "saved"},
                                            {"text", s["text"]},
                                            {"revision", s["revision"]},
-                                           {"name", utf8(path.filename().wstring())},
+                                           {"name", utf8(path.filename().wstring())}, {"kind", textMode ? "text" : "markdown"}, {"fileText", original}, {"newline", newline},
                                            {"documentId", documentId}}));
                         if (current["revision"].num() == s["revision"].num())
                             current["dirty"] = false;
@@ -416,37 +424,39 @@ struct App {
         safe([&] {
             if (name == "save" || name == "saveAs")
                 save(name == "saveAs", [this](bool) { busy = false; });
-            else if (name == "new" || name == "open" || name == "openPath" || name == "close")
-                canLeave([this, name, arg] {
-                    safe([&] {
-                        if (name == "close") {
-                            RECT r;
-                            GetWindowRect(hwnd, &r);
-                            prefs["Width"] = r.right - r.left;
-                            prefs["Height"] = r.bottom - r.top;
-                            savePreferences(prefs);
-                            clearRecovery();
-                            closing = true;
-                            DestroyWindow(hwnd);
-                            return;
-                        }
-                        if (name == "new") {
-                            path.clear();
-                            fileHash = "";
-                            newline = "\n";
-                            bom = false;
-                            original = "";
-                            load(tr("# 새 문서\n\n"), true);
-                            clearRecovery();
-                        } else {
-                            auto chosen =
-                                name == "openPath" ? std::optional<fs::path>(wide(arg)) : pick(false);
-                            if (chosen)
-                                open(utf8(chosen->wstring()));
-                        }
-                        busy = false;
-                    });
-                });
+            else if (name == "new" || name == "newText" || name == "open" || name == "openPath") {
+                snapshot([this, name, arg](Json) { safe([&] {
+                    if (name == "new" || name == "newText") {
+                        park(); static_cast<DocumentState &>(*this) = DocumentState{};
+                        textMode = name == "newText"; load(textMode ? "" : tr("# 새 문서\n\n"), !textMode);
+                        recovery();
+                    } else {
+                        auto chosen = name == "openPath" ? std::optional<fs::path>(wide(arg)) : pick(false);
+                        if (chosen) open(utf8(chosen->wstring())); else busy = false;
+                    }
+                }); });
+            } else if (name == "activateTab") {
+                snapshot([this, arg](Json) { activate(arg); });
+            } else if (name == "closeTab") {
+                snapshot([this, arg](Json) { activate(arg.empty() ? documentId : arg, [this] {
+                    canLeave([this] { removeActive(); });
+                }); });
+            } else if (name == "saveAll" || name == "close") {
+                snapshot([this, name](Json) { park(); processDocuments(tabOrder, 0, name == "close", documentId); });
+            } else if (name == "reload") {
+                canLeave([this] { safe([&] {
+                    if (path.empty()) { busy = false; return; }
+                    auto f = openDocument(path); original = f.text; fileHash = lastExternal = f.fingerprint; newline = f.newline; bom = f.bom;
+                    current = Json::object({{"text", f.text}, {"revision", 0}, {"dirty", false}, {"documentId", documentId}});
+                    displayDocument(false); recovery();
+                }); });
+            } else if (name == "openFolder" || name == "openFolderPath") {
+                auto chosen = name == "openFolderPath" ? std::optional<fs::path>(full(wide(arg))) : pickFolder();
+                if (chosen && fs::is_directory(*chosen)) { workspaceRoot = *chosen; post(Json::object({{"type", "folderRoot"}, {"root", utf8(workspaceRoot.wstring())}})); status(); }
+                busy = false;
+            } else if (name == "copySelectedPath") {
+                toast(clipboard(wide(arg)) ? "전체 경로를 복사했습니다" : "클립보드를 사용할 수 없습니다"); busy = false;
+            }
             else if (name == "image") {
                 if (arg.empty()) {
                     post(Json::object({{"type", "requestImage"}}));
@@ -487,6 +497,10 @@ struct App {
                 done(m);
             }
             return;
+        }
+        if (type == "listFolder") { listFolder(m); return; }
+        if (type == "loaded" && m["documentId"].str() == documentId) {
+            loadDeadline = 0; auto next = std::move(loaded); loaded = {}; if (next) next(); else busy = false; return;
         }
         if (!m["documentId"].null() && m["documentId"].str() != documentId)
             return;
@@ -729,6 +743,7 @@ struct App {
     }
     void tick() {
         auto now = GetTickCount64();
+        if (loadDeadline && now > loadDeadline) { loadDeadline = 0; loaded = {}; busy = false; error("편집기 응답 시간이 초과되었습니다. 문서는 유지됩니다."); }
         for (auto it = snapshots.begin(); it != snapshots.end();) {
             if (now > it->second.expires) {
                 it = snapshots.erase(it);
@@ -743,13 +758,13 @@ struct App {
                 lastRecovery = now;
                 recovery();
             }
-            if (!path.empty() && now - lastCheck >= 4000) {
-                lastCheck = now;
-                auto f = fingerprint(path);
-                if (f != fileHash && f != lastExternal) {
-                    lastExternal = f;
-                    toast("파일이 외부에서 변경되었습니다. 저장 시 충돌을 확인합니다.");
+            if (now - lastCheck >= 4000) {
+                lastCheck = now; park(); bool changed = false;
+                for (auto &[id, d] : documents) if (!d.path.empty()) {
+                    try { auto f = fingerprint(d.path); if (f != d.fileHash && f != d.lastExternal) { d.lastExternal = f; changed = true; } } catch (...) { }
                 }
+                if (documents.contains(documentId)) lastExternal = documents.at(documentId).lastExternal;
+                if (changed) { toast("파일이 외부에서 변경되었습니다. 저장 시 충돌을 확인합니다."); status(); }
             }
         }
         if (startupComplete && !busy && !activations.empty()) {

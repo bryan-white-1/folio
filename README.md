@@ -1,4 +1,4 @@
-Updated: 2026-10-21 12:50 KST (UTC+09:00)
+Updated: 2026-11-02 17:44 KST (UTC+09:00)
 
 # Folio
 
@@ -8,9 +8,9 @@ Edit the document as you read it. Turn Mermaid code into diagrams, navigate by h
 
 **Windows x64 MSI installer.** No account, server, or subscription is required for local editing.
 
-[Download for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.4/Folio-Setup-0.2.4-win-x64-online.msi) · [Release notes](https://github.com/bryan-white-1/folio/releases/tag/v0.2.4) · [Features](#features) · [Build from source](#build-from-source) · [Apache-2.0](LICENSE)
+[Download for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.5/Folio-Setup-0.2.5-win-x64-online.msi) · [Release notes](https://github.com/bryan-white-1/folio/releases/tag/v0.2.5) · [Features](#features) · [Build from source](#build-from-source) · [Apache-2.0](LICENSE)
 
-**Current release: 0.2.4** — Windows MSI installation, improved heading navigation, inserting a paragraph before the first table, and configurable Korean fonts. See the [English release notes](RELEASE_NOTES.md).
+**Current release: 0.2.5** — Project file tree, independent document tabs, syntax-highlighted Text editing, and improved editor contrast. See the [English release notes](RELEASE_NOTES.md).
 
 ![Folio's English interface with a Markdown heading outline, Mermaid workflow, and editable table](docs/images/folio-overview.png)
 
@@ -19,6 +19,14 @@ Edit the document as you read it. Turn Mermaid code into diagrams, navigate by h
 Markdown is a natural home for project notes, specifications, and documents written with AI assistance. Working with those files should feel just as straightforward: read a diagram, find a section, make a table readable, resize a screenshot, and give an AI tool the exact path to the document.
 
 Folio brings these everyday needs into a small, focused Windows app. Its purpose is to make local Markdown comfortable to read and edit, with practical details that save repeated trips to a file manager or a separate preview window. Your documents remain ordinary files you can keep in a project folder, track in Git, or use with other tools.
+
+## Project and Text editing
+
+Folio 0.2.5 adds a project file tree and document tabs, plus a Text editor for Python, JSON, Java, C, C++, and plain text. These features are included in the MSI and portable ZIP.
+
+Open a folder to browse its children. Markdown files use the existing rendered/source editor; other supported UTF-8 text files use Text mode. Tabs retain independent undo, selection, and scroll positions. Close a tab with `Ctrl+W`, switch with `Ctrl+Tab`, and use **More → New Text / Save all / Reload from disk**. Text mode supports language selection, indentation settings, word wrap, and `Ctrl+G` to go to a line. Files remain local; syntax highlighting does not execute code.
+
+Text saves preserve BOM, untouched line endings (including mixed endings), whitespace, and the absence of a final newline. Recovery and external-change checks cover all open documents. Folder browsing loads children on expansion; dependency/build directories can be shown using the exclusion toggle. Linked directories are not expanded. Legacy retains its single-document Markdown workflow.
 
 ## Features
 
@@ -72,11 +80,11 @@ Screenshots show the 0.2.2 native app's English interface with sample documents.
 
 Folio uses a **C++/Win32 host and the shared Microsoft WebView2 Runtime**, with Milkdown, CodeMirror, and Mermaid inside the editor. The native package does not bundle .NET or Windows App SDK runtimes.
 
-The `Folio-Setup-0.2.4-win-x64-online.msi` download includes the editor, examples, documentation, and WebView2 bootstrapper. Exact bytes and SHA-256 checksums are supplied with the [release assets](https://github.com/bryan-white-1/folio/releases/tag/v0.2.4). A shared WebView2 installation is separate: if it is missing, the online installer downloads it during setup. Local document editing then works offline.
+The `Folio-Setup-0.2.5-win-x64-online.msi` download includes the editor, examples, documentation, and WebView2 bootstrapper. Exact bytes and SHA-256 checksums are supplied with the [release assets](https://github.com/bryan-white-1/folio/releases/tag/v0.2.5). A shared WebView2 installation is separate: if it is missing, the online installer downloads it during setup. Local document editing then works offline.
 
 ## Install
 
-1. Download [Folio 0.2.4 for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.4/Folio-Setup-0.2.4-win-x64-online.msi).
+1. Download [Folio 0.2.5 for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.5/Folio-Setup-0.2.5-win-x64-online.msi).
 2. Run the installer and launch **Folio** from the Start menu. Folio installs per user without requiring administrator rights for the app.
 3. Open a Markdown file, or explore **More → Example documents**.
 
@@ -112,13 +120,13 @@ flowchart LR
 
 ## Your files stay portable
 
-Documents are UTF-8 `.md`, `.markdown`, or `.txt` files, with a 10 MB opening limit. Images are separate local assets, so keep the Markdown file and its `assets` folder together when sharing or moving a document.
+Documents are UTF-8 text files with a 10 MiB opening limit; `.md` and `.markdown` select Markdown mode. Unsupported encodings and binary files are rejected. Images are separate local assets, so keep the Markdown file and its `assets` folder together when sharing or moving a document.
 
 Folio stores table widths and image sizes in adjacent `folio:table:v1` and `folio:image:v1` HTML comments. Other Markdown viewers can display the content at their default sizes; deleting the comments restores automatic sizing in Folio. Keep each comment next to its table or image.
 
 Switching modes without editing preserves the document. Rendered edits may normalize Markdown punctuation and spacing; use Source view when exact Markdown syntax matters. Unsupported HTML, reference syntax, and front matter are preserved as source sections. External images are not loaded automatically; local images must be inside the document folder.
 
-Settings and recent files live in `%LOCALAPPDATA%\Folio\settings.json`; recovery data lives in `%LOCALAPPDATA%\Folio\recovery.json`. Folio currently uses one document window, without document tabs or live collaboration. See the [functional specification](SPEC.md) for precise behavior and limits.
+Settings and recent files live in `%LOCALAPPDATA%\Folio\settings.json`; recovery data lives in `%LOCALAPPDATA%\Folio\recovery.json`. Multiple document tabs share one window; live collaboration and normal-exit session restoration are not included. See the [functional specification](SPEC.md) for precise behavior and limits.
 
 ## Build from source
 

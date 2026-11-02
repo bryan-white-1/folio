@@ -1,12 +1,14 @@
-갱신: 2026-09-30 09:50 KST (UTC+09:00)
+갱신: 2026-11-02 13:32 KST (UTC+09:00)
 
 # Folio 0.2.2 · 2-A 네이티브 호스트
 
-범위: C#/.NET/WinUI 호스트를 C++20/Win32로 교체. 기존 TypeScript 편집기·Milkdown/ProseMirror·CodeMirror·Mermaid·DOMPurify 유지. 신규 편집 엔진·Markdown 파서 구현 없음. 기존 C# 소스·공개 0.1.11 배포물 유지. 공유 WebView2 Runtime 필요; 실행 파일/설치 파일 크기에 공유 런타임 크기는 포함하지 않는다.
+범위: C#/.NET/WinUI 호스트를 C++20/Win32로 교체. 기존 TypeScript 편집기·Milkdown/ProseMirror·CodeMirror·Mermaid·DOMPurify 유지. 신규 편집 엔진·Markdown 파서 구현 없음. Native Text/탭/폴더 확장 계약은 SPEC T01–T09; Legacy는 단일 Markdown 유지. 기존 C# 소스·공개 0.1.11 배포물 유지. 공유 WebView2 Runtime 필요; 실행 파일/설치 파일 크기에 공유 런타임 크기는 포함하지 않는다.
 
 | 계층 | 구현 |
 |---|---|
 | Windows | `src/Folio.Native/main.cpp`: 창·DPI·아이콘·파일 선택·WebView2 COM·비동기 메시지·클립보드 |
+| 프로젝트 문서 | `workspace.h/inc`: 문서별 저장 상태·탭·순차 저장/닫기·다중 복구·폴더 열거. 활성/보관 문서 동일 구조, WebView load ACK 후 명령 진행 |
+| 프로젝트 UI | `workspace.ts/css`: 탭·파일/목차·지연 폴더 탐색. `text-language.ts`: 확장자 판별·구문 강조. `DocumentModel`: 문서별 이력·Text 원본 개행 매핑 |
 | 저장 | `platform.h`: UTF-8/BOM/개행·SHA-256 충돌 검사·임시 파일 flush/교체·설정/복구·이미지 가져오기/복사 |
 | IPC | `activation.h`: 기존 mutex/pipe 이름·32KB UTF-8 경로·ACK·동일 사용자 ACL·로컬 연결·32건 대기·취소/시간 제한 |
 | JSON/COM | 자체 JSON 값/파서·직렬화, COM 수명/콜백 보조 코드. 외부 C++ 애플리케이션 프레임워크 없음 |

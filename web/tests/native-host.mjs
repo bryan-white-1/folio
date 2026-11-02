@@ -69,10 +69,12 @@ try {
   await waitFor(async () => JSON.parse(await readFile(path.join(profile, 'settings.json'), 'utf8')).FontFamily === 'Batang', 'Font save failed');
   await page.getByRole('tab', { name: '원문', exact: true }).click();
   await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('\n\n');
+  if (!process.argv.includes('--skip-system-clipboard')) {
   await packet({ type: 'copyTable', text: '클립보드 검증\t두 번째 셀', html: '<table><tr><td>클립보드 검증</td><td>두 번째 셀</td></tr></table>' });
   await page.waitForFunction(() => document.getElementById('toast').textContent.includes('복사했습니다'));
   await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.press('Control+v');
   await waitFor(async () => (await state()).text.includes('클립보드 검증\t두 번째 셀'), 'Native clipboard roundtrip failed'); tests.push('Windows Unicode / CF_HTML clipboard write and paste');
+  } else console.log('SKIP Windows system clipboard: explicitly excluded by --skip-system-clipboard');
   await page.keyboard.insertText('\n\n');
   await page.evaluate(() => { const bytes = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII='), c => c.charCodeAt(0)); const data = new DataTransfer(); data.items.add(new File([bytes], 'clipboard.png', { type: 'image/png' })); document.querySelector('.cm-content').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })); });
   await waitFor(async () => (await state()).text.includes('![이미지](assets/'), 'Image paste import failed');
@@ -82,7 +84,7 @@ try {
   const other = path.join(profile, '전달 문서.md'); await writeFile(other, '# 전달 성공\n');
   const forwarded = spawn(path.join(payload, 'Folio.exe'), [other], { env, windowsHide: true, stdio: 'ignore' });
   assert.equal((await once(forwarded, 'exit'))[0], 0); await waitFor(async () => (await state()).text.startsWith('# 전달 성공'), 'Single instance forwarding failed'); tests.push('Same-user pipe / Korean path / single instance activation');
-  await page.getByRole('button', { name: '최근 문서', exact: true }).click(); await page.getByRole('textbox', { name: '최근 문서 검색' }).fill('한글 공백'); await page.getByRole('option').dblclick(); await waitFor(async () => (await state()).text.includes('복구할 내용'), 'Recent open failed'); tests.push('Recent search / open / full path');
+  await page.getByRole('button', { name: '최근 문서', exact: true }).click(); await page.getByRole('textbox', { name: '최근 문서 검색' }).fill('한글 공백'); await page.locator('.host-recent-list').getByRole('option').dblclick(); await waitFor(async () => (await state()).text.includes('복구할 내용'), 'Recent open failed'); tests.push('Recent search / open / full path');
   await page.getByRole('tab', { name: '원문', exact: true }).click(); await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('\n재시작 복구');
   await waitFor(async () => JSON.parse(await readFile(path.join(profile, 'recovery.json'), 'utf8')).Text.includes('재시작 복구'), 'Recovery missing before crash');
   const exit = once(child, 'exit'); child.kill(); await exit; await browser.close().catch(() => {});
@@ -92,7 +94,7 @@ try {
   await page.getByRole('tab', { name: '렌더링', exact: true }).click(); await page.locator('.mermaid-diagram').waitFor(); tests.push('Existing Mermaid retained in native WebView2');
   await page.screenshot({ path: path.join(profile, 'native-light.png') }); await packet({ type: 'command', name: 'theme' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark'); await page.screenshot({ path: path.join(profile, 'native-dark.png') });
   await packet({ type: 'command', name: 'save' }); await waitFor(async () => !(await state()).dirty, 'Final save failed'); await cleanClose();
-  const report = { timestamp: new Date().toISOString(), passed: true, tests, profile, payload, limitations: ['Physical Windows IME / Excel / native file-picker interactions require manual verification.'] };
+  const report = { timestamp: new Date().toISOString(), passed: true, tests, profile, payload, limitations: ['Physical Windows IME / Excel / native file-picker interactions require manual verification.', ...(process.argv.includes('--skip-system-clipboard') ? ['Windows system clipboard explicitly excluded for environments without clipboard access.'] : [])] };
   await writeFile(path.join(profile, 'native-host-results.json'), JSON.stringify(report, null, 2)); console.log(JSON.stringify(report, null, 2));
 } catch (error) {
   await page?.screenshot({ path: path.join(profile, 'failure.png') }).catch(() => {});

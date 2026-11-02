@@ -14,5 +14,4 @@
 #host-filter:focus-visible,.host-dialog input:focus-visible,.host-dialog select:focus-visible,.host-dialog textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .host-recent-list button+button{border-top-color:var(--line)}
 
-:root:not([data-theme=dark]) .host-sidebar,:root:not([data-theme=dark]) .host-sidebar footer,:root:not([data-theme=dark]) #host-grip{background:#fff}
 .host-example{display:block;width:100%;padding:14px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}

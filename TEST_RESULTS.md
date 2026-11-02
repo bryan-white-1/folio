@@ -1,4 +1,47 @@
-갱신: 2026-10-21 12:50 KST (UTC+09:00)
+갱신: 2026-11-02 17:57 KST (UTC+09:00)
+
+Folio 0.2.5 · 배포 검증 · 2026-11-02
+
+| 검증 | 결과 |
+|---|---|
+| 빌드·패키지 버전 | TypeScript/Vite·Native C++ 통과. EXE 0.2.5.0·ProductVersion/웹/lock 0.2.5. 배포 웹 64개 SHA-256 일치 |
+| 단위·저장 | 웹 36/36·Native 저장 계층 통과 |
+| production UI | 최초 83/85: 표 붙여넣기 2개 불일치. 코드 변경 없이 전체 재실행 85/85 통과; 두 실행 모두 단일 worker. 최초 불일치 원인 미확정 |
+| Native 통합 | 실제 WebView2 13/13 통과, Windows Unicode/CF_HTML 클립보드 포함·제외 항목 없음 |
+| 새로고침 | 저장/미저장·원문/렌더링·Undo/Redo·파일 경로·정상 종료 6/6 통과 |
+| 프로젝트 편집 | 탭/언어/독립 이력·BOM/혼합 개행 저장·폴더 탐색·닫기 취소/모두 저장·외부 충돌·바이너리 거부·다중 복구 6개 시나리오 통과. 최초 화면 캡처 시간 초과 후 순차 재실행 통과 |
+| MSI 수명주기 | 격리 QA 제품·한글 경로·합성 0.2.4→0.2.5 MajorUpgrade·전체 payload SHA-256·바로가기/파일 열기 등록·누락 파일 복구·다운그레이드/EXE 전환 차단·설치 앱 13/13·제거/사용자 문서 보존 통과 |
+
+MSI 근거: `artifacts/msi-tests.json`, `.tools/release-025-msi-final.log`. 최초 설치 앱 CDP 연결 시간 초과 후 재실행. 기존 QA 정리 스크립트의 HKCU Uninstall 키 의존으로 시험 제품이 남는 문제를 Windows Installer ProductState 조회로 수정하고 정리·수명주기 재검증 완료. 제품 제거 등록도 직접 확인. 실제 사용자 Folio 설치는 유지. QA와 공개 패키지는 동일 실행 파일·웹 자산을 사용하며 최종 패키징 시 배포 문서만 갱신.
+
+근거: `.tools/release-025-build.log`, `release-025-unit.log`, `release-025-storage.log`, `release-025-ui.log`, `release-025-ui-recheck.log`, `release-025-native.log`, `release-025-refresh.log`, `release-025-workspace-recheck.log`. 실행 폴더: `artifacts/Folio-0.2.5-native-win-x64/`. 실제 Native Text 화면 확인.
+
+검증 제한: Windows 11 x64·기설치 WebView2 환경. Windows 10·runtime 미설치 새 PC·OS 물리 IME·실제 Excel·파일 선택창 수동 조작 미검증. 미서명 배포. 아래 개발본·이전 배포 기록은 시점별 이력이다.
+
+배경 대비 조정 · 2026-11-02: CSS·SPEC 갱신, TypeScript/Vite production·Native 빌드 통과. 실제 Native 밝음/어두움 × Text/Markdown 원문/렌더링 6조합에서 계산된 배경색·활성 탭 일치·dirty=false 확인. 본문 대비 밝음 14.68:1/어두움 10.25:1, 지정한 구문 강조색 최저 5.09:1/5.46:1. 밝은 Text 화면 캡처 확인; Native Markdown 캡처는 시간 초과하여 계산 스타일로 확인. CSS 변경으로 기능 회귀 전체 재실행은 생략. 신규 실행 폴더: `artifacts/Folio-0.2.4-native-win-x64-20261102-153353/`.
+
+Folio Native 프로젝트 편집 확장 · 2026-11-02
+
+| 검증 | 결과 |
+|---|---|
+| 빌드 | TypeScript/Vite production·Native C++ 컴파일·Native 저장 테스트 통과 |
+| 웹 단위 | 36/36: 기존 33 + Text 유형·혼합 개행·이력 3 |
+| production UI | 전체 84/84 + 긴 Text 선택/스크롤 복원 1/1; 합계 85. Markdown 표·이미지·Mermaid·목차·찾기·한영 UI 회귀 포함 |
+| Native 기존 기능 | 12/12 통과: 저장·BOM/개행·충돌·복구·설정/글꼴·이미지·단일 인스턴스·최근 파일·목차·Mermaid. 시스템 클립보드 1항목 별도 제외 |
+| Native 새로고침 | 6/6: 저장/미저장·원문/렌더링·Undo·파일 경로 보존 |
+| Native 프로젝트 편집 | 6개 시나리오 통과: Markdown/Text 탭·언어 자동 선택·경로 대소문자 중복 방지·독립 Undo·Text BOM/혼합 개행 저장; 폴더 지연 탐색/제외 표시; 닫기 취소/모두 저장; 비활성 탭 외부 변경/충돌; 바이너리 거부; 다중 문서 비정상 종료 복구 |
+| 시각 점검 | 실제 Native Text/Markdown·밝음/어두움 화면 확인, 코드 강조 대비 보완 |
+| 범위 | Native 소스 및 실행 폴더 검증. Legacy·MSI/EXE 설치 배포 재검증·게시 미수행 |
+
+제약: Windows 시스템 클립보드 쓰기는 신규 및 변경 전 0.2.4 Native 실행 파일 모두 `클립보드를 사용할 수 없습니다`로 실패. 기본 native-host 검증은 해당 항목에서 실패하며, 환경 제약을 명시하는 `--skip-system-clipboard`로 나머지 12개를 검증했다. 실제 Windows IME·Excel·OS 파일 선택창 조작은 자동 검증 범위 밖.
+
+산출물: `artifacts/Folio-0.2.4-native-win-x64-20261102-132159/Folio.exe` · 공개 0.2.4 설치본과 구분되는 개발 빌드. 폴더 전체를 유지하여 실행.
+
+재현: `web`에서 `npm test`; `FOLIO_TEST_PRODUCTION=1`로 `npm run test:ui`. 저장 테스트는 `.tools/native/storage-tests.exe`. 루트에서 `node web/tests/native-host.mjs <실행폴더> --skip-system-clipboard`, `node web/tests/host-refresh.mjs <실행폴더>`, `node web/tests/native-workspace.mjs <실행폴더>`. 기본 `Build-Native.ps1`은 시스템 클립보드 포함 전체 검증을 유지한다.
+
+실행 기록: `.tools/native-qa/2026-11-02T04-28-57-327Z/native-host-results.json`, `.tools/refresh-qa/2026-11-02T04-26-24-564Z/`, `.tools/workspace-qa/2026-11-02T04-30-10-554Z/`(밝음/어두움 화면).
+
+기존 공개 배포 검증 기록(아래): 현재 변경의 설치 검증 결과와 구분.
 
 Folio 0.2.4 · MSI 배포 검증 · 2026-10-21
 

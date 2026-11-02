@@ -156,8 +156,8 @@ inline Opened openDocument(const fs::path &p) {
     bool bom = bytes.starts_with("\xef\xbb\xbf");
     auto text = bytes.substr(bom ? 3 : 0);
     wide(text);
-    if (text.find('\0') != std::string::npos)
-        throw std::runtime_error("텍스트 Markdown 문서가 아닙니다");
+    if (std::any_of(text.begin(), text.end(), [](unsigned char c) { return c < 32 && c != '\t' && c != '\n' && c != '\r' && c != '\f'; }))
+        throw std::runtime_error("편집 가능한 UTF-8 텍스트 파일이 아닙니다");
     return {full(p), text, hash(bytes), text.find("\r\n") != std::string::npos ? "\r\n" : "\n", bom};
 }
 inline std::string saveDocument(const fs::path &p, const std::string &text, const std::string &newline,

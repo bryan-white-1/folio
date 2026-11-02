@@ -44,7 +44,7 @@ try {
     if (!(Test-Path dist/index.html)) { throw 'Missing web build' }
     if (!$SkipTests) { Invoke-Checked 'npm.cmd' @('test'); Invoke-Checked 'npm.cmd' @('run','test:ui') }
 } finally { Pop-Location }
-$version = '0.2.4'
+$version = '0.2.5'
 $publish = Join-Path $projectRoot "artifacts/Folio-$version-native-win-x64"
 if (Test-Path -LiteralPath $publish) { $publish += '-' + (Get-Date -Format 'yyyyMMdd-HHmmss') }
 New-Item -ItemType Directory -Path $publish -Force | Out-Null
@@ -71,6 +71,7 @@ if (!$SkipTests) {
     Invoke-Checked $testExe @()
     Invoke-Checked 'node' @((Join-Path $projectRoot 'web/tests/native-host.mjs'),$publish)
     Invoke-Checked 'node' @((Join-Path $projectRoot 'web/tests/host-refresh.mjs'),$publish)
+    Invoke-Checked 'node' @((Join-Path $projectRoot 'web/tests/native-workspace.mjs'),$publish)
 }
 if ($Zip) { Compress-Archive -LiteralPath $publish -DestinationPath ($publish + '.zip') }
 if ($Installer) { & (Join-Path $PSScriptRoot 'Build-Installer.ps1') -AppDirectory $publish -RuntimeMode $RuntimeMode }
