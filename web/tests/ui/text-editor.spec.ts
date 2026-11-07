@@ -10,6 +10,9 @@ test('text editing highlights Python and preserves mixed line endings without Ma
   await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('!');
   expect((await snapshot(page)).text).toBe('def greet():\r\n    return "hello"\n# end!');
   await page.keyboard.press('Control+b'); await page.keyboard.press('Control+Shift+m');
+  const beforeHeading = await snapshot(page);
+  for (let level = 1; level <= 6; level++) await page.keyboard.press(`Control+${level}`);
+  expect(await snapshot(page)).toEqual(beforeHeading);
   expect((await snapshot(page)).kind).toBe('text'); expect((await snapshot(page)).text).not.toContain('**');
   await page.keyboard.press('Control+z'); expect((await snapshot(page)).dirty).toBe(false);
 });

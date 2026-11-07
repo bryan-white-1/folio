@@ -1,10 +1,10 @@
 import { language, t, tr, translateUi } from './i18n';
-import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx, remarkStringifyOptionsCtx, parserCtx, serializerCtx } from '@milkdown/kit/core';
 import { defaultHandlers } from 'mdast-util-to-markdown';
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInBulletListCommand, wrapInBlockquoteCommand, createCodeBlockCommand } from '@milkdown/kit/preset/commonmark';
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/kit/preset/gfm';
 import { $prose, callCommand, getMarkdown, replaceAll, insert } from '@milkdown/kit/utils';
-import { AllSelection, Plugin, TextSelection, Selection, type Command } from '@milkdown/kit/prose/state';
+import { AllSelection, Plugin, TextSelection, Selection, EditorState as ProseState, type Command } from '@milkdown/kit/prose/state';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { GapCursor, gapCursor } from '@milkdown/kit/prose/gapcursor';
 import { createParagraphNear } from '@milkdown/kit/prose/commands';
@@ -23,13 +23,15 @@ import { refreshDiagrams } from './mermaid-renderer';
 import { dismissDiagramViewer } from './mermaid-viewer';
 import { welcome } from './welcome';
 import { frontmatter, preserveSyntax, rawInline, rawBlock } from './preserved-markdown';
+import { textColor, colorHandler, renderedColorStatus, setTextColor } from './text-color';
+import { sourceColorStatus, sourceColorChanges, stripTextColors } from './text-color-markdown';
 import { configureLayout, layoutConstraints } from './layout-schema';
 import { imageNodeView } from './image-node-view';
 import './style.css';
 import './layout.css';
 import './mermaid.css';
 import { renderedHeadingStatus, sourceHeadingStatus, sourceHeadingChanges, sourceTableInsertionAllowed, setHeading } from './heading-commands';
-import { tableContext, tableCommand, nextTableCell, emptyTableMarkdown, validTableSize, type TableAction } from './table-commands';
+import { tableContext, tableCommand, nextTableCell, appendTableRowAtEnd, emptyTableMarkdown, validTableSize, type TableAction } from './table-commands';
 import { FormatToolbar } from './format-toolbar';
 import { tableClipboard, serializeTableSelection } from './table-clipboard';
 import { sourceTaskStatus, sourceTaskChanges, renderedTaskStatus, toggleTaskList, splitTaskItem } from './task-commands';
@@ -346,7 +348,11 @@ async function toggleCode() {
   flushRendered(); model.breakGroup(); publish(); updateCommandButtons(); focusFormat();
 }
 
-async function prepareFormat() { await settleComposition(); flushRendered(); }
+async function prepareFormat() {
+  await settleComposition();
+  if (mode === 'rendered') editor.action(ctx => syncRenderedTextSelection(ctx.get(editorViewCtx)));
+  flushRendered();
+}
 function syncRenderedTextSelection(view: ProseEditorView) {
   const selection = window.getSelection();
   if ((view.state.selection instanceof TextSelection || view.state.selection instanceof AllSelection) && selection?.anchorNode && selection.focusNode &&
@@ -390,8 +396,41 @@ function formatStatus() {
   const state = editor.action(ctx => ctx.get(editorViewCtx).state);
   const range = source.state.selection.main;
   const heading = mode === 'source' ? sourceHeadingStatus(model.text, range.from, range.to) : renderedHeadingStatus(state);
-  return { heading, table: mode === 'rendered' && tableContext(state) ? state : null,
+  const color = mode === 'source' ? sourceColorStatus(model.text, range.from, range.to) : renderedColorStatus(state);
+  return { heading, color, table: mode === 'rendered' && tableContext(state) ? state : null,
     canInsert: mode === 'source' ? sourceTableInsertionAllowed(model.text, range.from, range.to) : heading.enabled && state.selection.$from.depth >= 1 && state.selection.$from.node(-1).canReplaceWith(state.selection.$from.index(-1), state.selection.$from.indexAfter(-1), state.schema.nodes.table) };
+}
+async function applyColor(color: string | null, target: FormatTarget) {
+  if (kind === 'text') return;
+  await prepareFormat();
+  if (!restoreFormat(target)) return;
+  model.breakGroup();
+  if (mode === 'source') {
+    const range = source.state.selection.main;
+    const changes = sourceColorChanges(model.text, range.from, range.to, color);
+    if (changes.length) {
+      const changeSet = source.state.changes(changes);
+      source.dispatch({ changes: changeSet, selection: { anchor: changeSet.mapPos(range.from, -1), head: changeSet.mapPos(range.to, 1) } });
+    }
+  } else editor.action(ctx => { const view = ctx.get(editorViewCtx); setTextColor(color)(view.state, view.dispatch, view); });
+  flushRendered(); model.breakGroup(); publish(); focusFormat();
+}
+async function exportWithoutColor() {
+  if (kind === 'text') return;
+  await prepareFormat();
+  const text = stripTextColors(model.text) === model.text ? model.text : editor.action(ctx => {
+    // Serialize a detached document so literal Markdown punctuation remains escaped
+    // after removing the HTML boundaries. Never dispatch or alter editor history.
+    const doc = ctx.get(parserCtx)(model.text);
+    if (!doc) throw new Error(t('Markdown을 변환하지 못했습니다.'));
+    const tr = ProseState.create({ doc }).tr.removeMark(0, doc.content.size, doc.type.schema.marks.folio_text_color);
+    return ctx.get(serializerCtx)(tr.doc);
+  });
+  if (bridge) { send({ type: 'exportMarkdown', text, images: analysis().images }); return; }
+  const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob), link = document.createElement('a');
+  link.href = url; link.download = ($('document-name').textContent ?? 'document.md').replace(/\.(md|markdown)$/i, '') + '.plain.md';
+  link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 async function applyHeading(level: number, target?: FormatTarget) {
   if (kind === 'text') return;
@@ -589,6 +628,7 @@ async function start() {
     configureLayout(ctx);
     ctx.update(remarkStringifyOptionsCtx, options => ({ ...options, handlers: {
       ...options.handlers,
+      folioColor: colorHandler,
       break(node, parent, state, info) {
         // Preserve upstream context rules; use invisible hard breaks for Typora compatibility.
         const result = defaultHandlers.break(node, parent, state, info);
@@ -599,11 +639,11 @@ async function start() {
     ctx.update(editorViewOptionsCtx, options => ({ ...options, editable: () => true, attributes: { 'aria-label': t('Markdown 렌더링 편집'), spellcheck: 'false' } }));
   }).use([...frontmatter, ...preserveSyntax]).use($prose(() => gapCursor())).use(commonmark).use($prose(() => tableClipboard((view, tr) => {
     flushRendered(); model.breakGroup(); view.dispatch(tr); flushRendered(); model.breakGroup(); publish();
-  }, toast))).use($prose(() => columnResizing({ cellMinWidth: 40, defaultCellMinWidth: 100, handleWidth: 7 }))).use(gfm).use([...rawInline, ...rawBlock]).use(layoutConstraints).use($prose(() => renderedSearchPlugin(() => renderedSearch?.update()))).use(syncPlugin).create();
+  }, toast, syncRenderedTextSelection))).use($prose(() => columnResizing({ cellMinWidth: 40, defaultCellMinWidth: 100, handleWidth: 7 }))).use(gfm).use([...textColor, ...rawInline, ...rawBlock]).use(layoutConstraints).use($prose(() => renderedSearchPlugin(() => renderedSearch?.update()))).use(syncPlugin).create();
   renderedSearch = new RenderedSearch(() => editor.action(ctx => ctx.get(editorViewCtx)));
   baseline = editor.action(ctx => ctx.get(editorViewCtx).state.doc); refreshSource(); publish();
   formatToolbar = new FormatToolbar<FormatTarget>({ prepare: prepareFormat, capture: captureFormat, status: formatStatus, focus: focusFormat,
-    heading: applyHeading, table: applyTable, copy: copyTable, insert: insertSizedTable,
+    heading: applyHeading, color: applyColor, exportWithoutColor, table: applyTable, copy: copyTable, insert: insertSizedTable,
     tableCellElement: () => editor.action(ctx => {
       const view = ctx.get(editorViewCtx), c = tableContext(view.state);
       return c ? view.nodeDOM(c.tableStart + c.map.map[c.top * c.map.width + c.left]) as HTMLElement : null;
@@ -661,6 +701,9 @@ document.addEventListener('keydown', e => {
       flushRendered(); model.breakGroup(); publish(); return;
     }
     const c = tableContext(state);
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && appendTableRowAtEnd(state)) {
+      e.preventDefault(); e.stopImmediatePropagation(); void applyTable(appendTableRowAtEnd); return;
+    }
     if (c && e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey) {
       e.preventDefault(); e.stopImmediatePropagation();
       if (e.shiftKey && !goToNextCell(-1)(state)) $('heading-picker').focus();
@@ -672,7 +715,8 @@ document.addEventListener('keydown', e => {
     }
   }
   if (!(e.ctrlKey || e.metaKey)) return;
-  if (kind === 'markdown' && inEditor && e.altKey && /^[0-6]$/.test(e.key)) { e.preventDefault(); e.stopImmediatePropagation(); void applyHeading(Number(e.key)); return; }
+  const headingShortcut = e.altKey ? /^[0-6]$/.test(e.key) : e.ctrlKey && !e.metaKey && !e.shiftKey && /^[1-6]$/.test(e.key);
+  if (kind === 'markdown' && inEditor && headingShortcut) { e.preventDefault(); e.stopImmediatePropagation(); void applyHeading(Number(e.key)); return; }
   if (e.target instanceof Element && e.target.closest('.format-popover')) return;
   const key = e.key.toLowerCase();
   if (kind === 'markdown' && inEditor && e.altKey && key === 'c') { e.preventDefault(); e.stopImmediatePropagation(); void command('code'); return; }

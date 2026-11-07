@@ -237,6 +237,7 @@ public sealed partial class MainWindow : Window
             else if (type == "cursor") { if (message.TryGetProperty("headingId", out var h) && h.ValueKind == JsonValueKind.String && nodes.TryGetValue(h.GetString()!, out var node)) tree.SelectedNode = node; }
             else if (type == "importImages") await ReceiveImages(message);
             else if (type == "copyTable") await CopyTableSelection(message.GetProperty("text").GetString() ?? "", message.GetProperty("html").GetString() ?? "");
+            else if (type == "exportMarkdown") await ExportMarkdown(message);
             else if (type == "command")
             {
                 var name = message.GetProperty("name").GetString()!;
@@ -347,9 +348,29 @@ public sealed partial class MainWindow : Window
         var picker = new FileOpenPicker(); WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         picker.FileTypeFilter.Add(".md"); picker.FileTypeFilter.Add(".markdown"); picker.FileTypeFilter.Add(".txt"); return (await picker.PickSingleFileAsync())?.Path;
     }
-    private async Task<string?> PickSave()
+    private async Task ExportMarkdown(JsonElement message)
     {
-        var picker = new FileSavePicker { SuggestedFileName = filePath is null ? "새 문서" : Path.GetFileNameWithoutExtension(filePath) };
+        if (busy) return;
+        var text = message.GetProperty("text").GetString() ?? "";
+        if (System.Text.Encoding.UTF8.GetByteCount(text) > 10 * 1024 * 1024) return;
+        busy = true;
+        try
+        {
+            var destination = await PickSave((filePath is null ? "document" : Path.GetFileNameWithoutExtension(filePath)) + ".plain");
+            if (destination is null) return;
+            if (filePath is not null && string.Equals(Path.GetFullPath(destination), Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase))
+            { Post(new { type = "toast", message = "열린 문서와 다른 경로로 내보내세요." }); return; }
+            var disk = await FileStore.Fingerprint(destination);
+            var images = message.GetProperty("images").EnumerateArray().Select(image => image.GetString() ?? "").ToArray();
+            await FileStore.CopyImages(ImageDocumentPath, destination, images);
+            await FileStore.Save(destination, text, newline, bom, disk);
+            Post(new { type = "toast", message = "색상 없는 Markdown을 내보냈습니다." });
+        }
+        finally { busy = false; }
+    }
+    private async Task<string?> PickSave(string? suggestedName = null)
+    {
+        var picker = new FileSavePicker { SuggestedFileName = suggestedName ?? (filePath is null ? "새 문서" : Path.GetFileNameWithoutExtension(filePath)) };
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this)); picker.FileTypeChoices.Add("Markdown 문서", new List<string> { ".md" }); return (await picker.PickSaveFileAsync())?.Path;
     }
     private async Task InsertImage(string requestId)

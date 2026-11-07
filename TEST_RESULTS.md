@@ -1,4 +1,32 @@
-갱신: 2026-11-02 17:57 KST (UTC+09:00)
+갱신: 2026-11-07 11:21 KST (UTC+09:00)
+
+Folio 0.2.6 · 배포 검증 · 2026-11-07
+
+| 검증 | 결과 |
+|---|---|
+| 빌드·버전 | TypeScript/Vite·Native C++·WiX MSI 통과. EXE 0.2.6.0·ProductVersion/웹/lock 0.2.6. 배포 웹 64개 파일 일치 |
+| 단위·저장 | 웹 44/44·Native 저장 계층 통과 |
+| production UI | 전체 114/114, 최초 실행·재시도 없음. 글자색·내보내기·새 문서 메뉴·표 Enter·기존 편집 회귀 포함 |
+| Native 통합 | 실제 WebView2 13/13, Windows Unicode/CF_HTML 클립보드 포함 |
+| 새로고침·프로젝트 | 문서/이력 보존 6/6·다중 탭/폴더/저장/충돌/복구 6개 시나리오 통과 |
+| MSI 수명주기 | 격리 QA 제품·한글 경로·합성 0.2.5→0.2.6 MajorUpgrade·모든 설치 파일 SHA-256·바로가기/파일 연결·복구·다운그레이드/EXE 전환 차단·설치 앱 13/13·제거/사용자 문서 보존 통과 |
+| 패키지 | 온라인 MSI·휴대용 ZIP·SHA-256·MSI JSON. ZIP CRC/파일 일치 검증 통과 |
+
+근거: `.tools/release-026-build.log`, `.tools/release-026-msi.log`, `artifacts/msi-tests.json`. 실행 폴더: `artifacts/Folio-0.2.6-native-win-x64/`. QA/공개 패키지는 동일 실행 파일·웹 자산 사용, 검증 후 동봉 문서만 갱신. 기존 사용자 설치 유지.
+
+제한: Windows 11 x64·기설치 WebView2 환경. Windows 10·runtime 없는 새 PC·오프라인 최초 설치·OS 물리 IME·실제 Excel·Native/Legacy 내보내기 저장창 수동 조작·외부 편집기 재저장 미검증. 미서명 배포. 기존 Vite 청크 크기/DOMPurify 중복 import 경고 유지. 아래 기록은 이전 개발·배포 시점의 이력이다.
+
+Folio 글자색 확장 · 개발본 · 2026-11-07
+
+| 검증 | 결과 |
+|---|---|
+| 빌드 | TypeScript/Vite production·Native C++ 링크·Legacy C# 빌드 통과. 기존 Vite 청크 크기/DOMPurify 중복 import 경고 유지 |
+| 단위 | 44/44 통과. 색상 8건: 값 검증·중첩·비지원 HTML/코드 보존·부분 적용/해제·서식/목차·줄바꿈·escape/entity/emoji·혼합 상태 |
+| 색상 production UI | 최종 10/10 통과. 양쪽 모드·동일색 no-op·Undo/Redo·재로드·부분 해제·연속 선택·표/링크/줄바꿈·HTML 붙여넣기·HEX/혼합·한영/좁은 어두움·다운로드/호스트 export 패킷·리터럴 Markdown 보존 |
+| 전체 회귀 | production 최초 112/114: 표 붙여넣기 2건 선택 위치 불일치. DOM 선택 동기화 보완 후 클립보드/우클릭 복사 17/17 통과. 관련 27건 실행 중 색상 부분 해제 1건은 연속 키 입력 선택 설정 불안정; 명시적 DOM 범위 선택으로 시험 보정 후 색상 10/10 통과. 최종 전체 114건 일괄 재실행은 생략 |
+| UI 확인 | 380×680 어두운 테마 팔레트·HEX·혼합 상태·내보내기 화면 확인. 팝오버 위치 CSS clamp로 resize 프레임 전 화면 경계 이탈 방지 |
+
+실행 파일: `artifacts/Folio-0.2.5-native-win-x64-20261107-110228/Folio.exe`. SPEC E22–E24. 기존 작업 중 변경 유지, 설치본 갱신·설치 패키지 생성 없음. 검증 제한: 외부 에디터 실제 재저장·OS 물리 IME·Native/Legacy 내보내기 저장창 수동 조작 미검증. 아래 기록은 이전 시점의 배포/개발 검증이다.
 
 Folio 0.2.5 · 배포 검증 · 2026-11-02
 

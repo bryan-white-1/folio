@@ -181,11 +181,13 @@ function copyGrid(view: EditorView, event: ClipboardEvent, cut: boolean, commit:
   return true;
 }
 
-export function tableClipboard(commit: (view: EditorView, tr: Transaction) => void, notify: (message: string) => void) {
+export function tableClipboard(commit: (view: EditorView, tr: Transaction) => void, notify: (message: string) => void, syncSelection?: (view: EditorView) => void) {
   return new Plugin({ props: { handleDOMEvents: {
     copy: (view, event) => copyGrid(view, event, false, commit),
     cut: (view, event) => copyGrid(view, event, true, commit),
     paste(view, event) {
+      // Browser selectionchange may arrive after a quick click-and-paste.
+      if (!view.composing) syncSelection?.(view);
       if (!event.clipboardData || view.state.selection.$from.parent.type.spec.code || view.composing) return false;
       try {
         const grid = readGrid(event.clipboardData, view);

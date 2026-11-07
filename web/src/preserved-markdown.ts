@@ -2,6 +2,7 @@ import { t } from './i18n';
 import { $nodeSchema, $remark } from '@milkdown/kit/utils';
 import remarkFrontmatter from 'remark-frontmatter';
 import { readLayoutMetadata } from './layout-metadata';
+import { readTextColors } from './text-color-markdown';
 
 // Convert unsupported syntax before commonmark's normalizers can discard or expand it.
 // Raw tokens are inert document atoms, never executable HTML.
@@ -9,6 +10,7 @@ type Ast = { type: string; value?: string; children?: Ast[]; position?: { start:
 export const frontmatter = $remark('folio-frontmatter', () => remarkFrontmatter, ['yaml', 'toml']);
 export const preserveSyntax = $remark('folio-preserve-syntax', () => () => (tree, file) => {
   readLayoutMetadata(tree);
+  readTextColors(tree);
   const source = String(file.value);
   function visit(parent: Ast) {
     parent.children = parent.children?.map(node => {

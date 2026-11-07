@@ -15,6 +15,65 @@ async function action(page: Page, name: string) {
 }
 test.beforeEach(async ({ page }) => { await page.goto('/'); await page.waitForFunction(() => !!(window as any).folio); });
 
+for (const mode of ['rendered', 'source'] as const) {
+  for (const shortcut of ['Control', 'Control+Alt']) {
+    test(`${mode} ${shortcut}+1–6 applies headings with no-op and undo/redo`, async ({ page }) => {
+      await load(page, '제목\n\n그대로\n');
+      if (mode === 'source') await page.getByRole('tab', { name: '원문', exact: true }).click();
+      await page.locator(mode === 'source' ? '.cm-content' : '.ProseMirror p').first().click();
+      await page.keyboard.press('Control+Home');
+      for (let level = 1; level <= 6; level++) {
+        await page.keyboard.press(`${shortcut}+${level}`);
+        await expect.poll(async () => (await snapshot(page)).text).toBe('#'.repeat(level) + ' 제목\n\n그대로\n');
+        await expect(page.locator('#heading-picker')).toContainText(`제목 ${level}`);
+      }
+      const before = await snapshot(page);
+      await page.keyboard.press(`${shortcut}+6`); expect(await snapshot(page)).toEqual(before);
+      await page.keyboard.press('Control+z');
+      await expect.poll(async () => (await snapshot(page)).text).toBe('##### 제목\n\n그대로\n');
+      await page.keyboard.press('Control+y');
+      await expect.poll(async () => (await snapshot(page)).text).toBe('###### 제목\n\n그대로\n');
+      await page.keyboard.press('Control+Alt+0');
+      await expect.poll(async () => (await snapshot(page)).text).toBe('제목\n\n그대로\n');
+      await page.keyboard.press('Control+1');
+      await expect.poll(async () => (await snapshot(page)).text).toBe('# 제목\n\n그대로\n');
+      await page.keyboard.press('Control+Home'); await page.keyboard.press('Control+Shift+End');
+      await expect(page.locator('#heading-picker')).toContainText('혼합');
+      await page.keyboard.press('Control+3');
+      await expect.poll(async () => (await snapshot(page)).text).toBe('### 제목\n\n### 그대로\n');
+    });
+  }
+  test(`${mode} heading shortcuts ignore composition, other modifiers, code and tables`, async ({ page }) => {
+    await load(page, '본문\n');
+    if (mode === 'source') await page.getByRole('tab', { name: '원문', exact: true }).click();
+    const content = page.locator(mode === 'source' ? '.cm-content' : '.ProseMirror');
+    await content.click();
+    const before = await snapshot(page);
+    for (const extra of [{ isComposing: true }, { shiftKey: true }, { metaKey: true }]) {
+      await content.dispatchEvent('keydown', { key: '1', code: 'Digit1', ctrlKey: true, ...extra });
+      expect(await snapshot(page)).toEqual(before);
+    }
+    await page.locator('#heading-picker').focus(); await page.keyboard.press('Control+1');
+    expect(await snapshot(page)).toEqual(before);
+    for (const text of ['```\ncode\n```\n', '| A | B |\n| --- | --- |\n| a | b |\n']) {
+      await load(page, text);
+      if (mode === 'source') await page.getByRole('tab', { name: '원문', exact: true }).click();
+      await content.click(); await page.keyboard.press('Control+Home'); await page.keyboard.press('ArrowDown');
+      const blocked = await snapshot(page);
+      await page.keyboard.press('Control+1'); expect(await snapshot(page)).toEqual(blocked);
+    }
+  });
+}
+
+test('heading menu shows primary shortcuts and preserves the body shortcut', async ({ page }) => {
+  await load(page, '본문\n'); await page.locator('.ProseMirror p').click();
+  await expect(page.locator('#heading-picker')).toHaveAttribute('title', /Ctrl\+1–6.*Ctrl\+Alt\+0.*Ctrl\+Alt\+1–6/);
+  await page.locator('#heading-picker').click();
+  for (let level = 0; level <= 6; level++) {
+    await expect(page.locator(`#format-popover [data-level="${level}"] kbd`)).toHaveText(level ? `Ctrl+${level}` : 'Ctrl+Alt+0');
+  }
+});
+
 test('all heading levels, body, current status, no-op and individual undo work in rendered mode', async ({ page }) => {
   await load(page, '한글 **강조**\n'); await page.locator('.ProseMirror p').click();
   for (let level = 1; level <= 6; level++) {

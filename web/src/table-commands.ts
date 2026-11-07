@@ -112,6 +112,16 @@ export const nextTableCell: Command = (state, dispatch, view) => {
   }, view);
 };
 
+export const appendTableRowAtEnd: Command = (state, dispatch, view) => {
+  if (!(state.selection instanceof TextSelection) || !state.selection.empty) return false;
+  const c = tableContext(state);
+  if (!c) return false;
+  const lastCellOffset = c.map.map[c.map.map.length - 1];
+  const lastCell = c.table.nodeAt(lastCellOffset)!;
+  if (state.selection.from !== c.tableStart + lastCellOffset + lastCell.nodeSize - 2) return false;
+  return nextTableCell(state, dispatch, view);
+};
+
 export function emptyTableMarkdown(rows: number, cols: number) {
   const blank = '| ' + Array(cols).fill(' ').join(' | ') + ' |';
   return [blank, '| ' + Array(cols).fill('---').join(' | ') + ' |', ...Array(rows - 1).fill(blank)].join('\n');

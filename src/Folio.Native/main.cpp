@@ -179,7 +179,7 @@ struct App : DocumentState {
         if (workspaceRoot.empty()) workspaceRoot = path.parent_path();
         remember(prefs, path); load(f.text, false); recovery();
     }
-    std::optional<fs::path> pick(bool save, bool image = false) {
+    std::optional<fs::path> pick(bool save, bool image = false, const std::wstring &suggestedName = {}) {
         Com<IFileDialog> dialog;
         if (save)
             hrcheck(CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER,
@@ -201,7 +201,7 @@ struct App : DocumentState {
                            (save ? FOS_OVERWRITEPROMPT : FOS_FILEMUSTEXIST));
         if (save) {
             dialog->SetDefaultExtension(textMode ? L"txt" : L"md");
-            dialog->SetFileName(path.empty() ? wide(tr(textMode ? "새 문서.txt" : "새 문서.md")).c_str() : path.filename().c_str());
+            dialog->SetFileName(!suggestedName.empty() ? suggestedName.c_str() : path.empty() ? wide(tr(textMode ? "새 문서.txt" : "새 문서.md")).c_str() : path.filename().c_str());
         }
         if (!path.empty()) {
             Com<IShellItem> dir;
@@ -541,6 +541,24 @@ struct App : DocumentState {
                 busy = true;
                 images(m, false);
             }
+        } else if (type == "exportMarkdown") {
+            if (busy || textMode || m["text"].str().size() > 10 * 1024 * 1024) return;
+            busy = true;
+            safe([&] {
+                auto chosen = pick(true, false, (path.empty() ? std::wstring(L"document") : path.stem().wstring()) + L".plain.md");
+                if (chosen) {
+                    bool openFile = !path.empty() && same(path, *chosen);
+                    for (auto &[id, d] : documents) if (!d.path.empty() && same(d.path, *chosen)) openFile = true;
+                    if (openFile) toast("열린 문서와 다른 경로로 내보내세요.");
+                    else {
+                        auto disk = fingerprint(*chosen);
+                        copyImages(imageDocument(), *chosen, m["images"]);
+                        saveDocument(*chosen, m["text"].str(), newline, bom, disk);
+                        toast("색상 없는 Markdown을 내보냈습니다.");
+                    }
+                }
+                busy = false;
+            });
         } else if (type == "copyTable") {
             auto text = m["text"].str(), html = m["html"].str();
             if (text.size() + html.size() <= 10'000'000)

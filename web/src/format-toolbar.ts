@@ -1,15 +1,18 @@
 import { t, tr, uiHtml } from './i18n';
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { HeadingStatus } from './heading-commands';
+import { normalizeColor, type ColorStatus } from './text-color-markdown';
 import { tableContext, tableActionReason, validTableSize, type TableAction } from './table-commands';
 import './format-toolbar.css';
 
 export interface FormatActions<T> {
   prepare(): Promise<void>;
   capture(): T;
-  status(): { heading: HeadingStatus; table: EditorState | null; canInsert: boolean };
+  status(): { heading: HeadingStatus; color: ColorStatus; table: EditorState | null; canInsert: boolean };
   focus(): void;
   heading(level: number, target: T): Promise<void>;
+  color(value: string | null, target: T): Promise<void>;
+  exportWithoutColor(): Promise<void>;
   table(action: TableAction, target: T): Promise<void>;
   copy(target: T): Promise<void>;
   insert(rows: number, cols: number, target: T): Promise<void>;
@@ -24,6 +27,7 @@ const labels: Record<TableAction, string> = {
 
 export class FormatToolbar<T> {
   private headingButton = document.getElementById('heading-picker') as HTMLButtonElement;
+  private colorButton = document.getElementById('color-picker') as HTMLButtonElement;
   private insertButton = document.querySelector<HTMLButtonElement>('[data-command="table"]')!;
   private panel = document.createElement('div');
   private target: T | null = null;
@@ -36,6 +40,9 @@ export class FormatToolbar<T> {
     this.panel.id = 'format-popover'; this.panel.tabIndex = -1;
     document.body.append(this.panel);
     this.headingButton.setAttribute('aria-controls', this.panel.id);
+    this.colorButton.setAttribute('aria-controls', this.panel.id);
+    this.colorButton.onmousedown = e => e.preventDefault();
+    this.colorButton.onclick = () => void this.open('color', this.colorButton);
     this.insertButton.setAttribute('aria-haspopup', 'dialog');
     this.headingButton.onmousedown = e => e.preventDefault();
     this.headingButton.onclick = () => void this.open('heading', this.headingButton);
@@ -60,9 +67,12 @@ export class FormatToolbar<T> {
     if (focus) this.actions.focus();
   }
   update() {
-    const { heading, canInsert } = this.actions.status();
+    const { heading, color, canInsert } = this.actions.status();
+    this.colorButton.style.setProperty('--text-color', color.mixed ? 'var(--muted)' : color.color ?? 'currentColor');
+    this.colorButton.dataset.mixed = String(color.mixed);
+    this.colorButton.title = t('글자색') + ' · ' + (color.mixed ? t('혼합') : color.color ?? t('기본색'));
     this.headingButton.disabled = !heading.enabled;
-    this.headingButton.title = heading.reason || t('본문·제목 선택 (Ctrl+Alt+0–6)');
+    this.headingButton.title = heading.reason || t('본문·제목 선택 (제목 Ctrl+1–6 · 본문 Ctrl+Alt+0 · 기존 Ctrl+Alt+1–6 지원)');
     this.headingButton.querySelector('span')!.textContent = !heading.enabled ? t('서식') : heading.level === null ? t('혼합') : heading.level ? tr`제목 ${heading.level}` : t('본문');
     this.insertButton.disabled = !canInsert;
     this.insertButton.title = canInsert ? t('표 삽입 · 행과 열 선택') : t('표 밖의 문단에서 표를 삽입하세요');
@@ -78,15 +88,16 @@ export class FormatToolbar<T> {
     const x = this.positionPoint?.x ?? a.left;
     const y = this.positionPoint?.y ?? a.bottom + 7;
     const h = this.panel.offsetHeight;
-    this.panel.style.left = `${Math.max(8, Math.min(x, innerWidth - this.panel.offsetWidth - 8))}px`;
-    this.panel.style.top = `${Math.max(8, Math.min(y, innerHeight - h - 8))}px`;
+    // CSS keeps the panel in bounds even before the resize animation frame runs.
+    this.panel.style.left = `clamp(8px, ${x}px, calc(100vw - ${this.panel.offsetWidth + 8}px))`;
+    this.panel.style.top = `clamp(8px, ${y}px, calc(100vh - ${h + 8}px))`;
   }
-  async open(kind: 'heading' | 'insert' | 'context', anchor?: HTMLElement, point?: { x: number; y: number }) {
+  async open(kind: 'heading' | 'insert' | 'context' | 'color', anchor?: HTMLElement, point?: { x: number; y: number }) {
     const token = ++this.pendingOpen;
     await this.actions.prepare();
     if (token !== this.pendingOpen) return;
     const status = this.actions.status();
-    if ((kind === 'heading' && !status.heading.enabled) || (kind === 'insert' && !status.canInsert) || (!['heading', 'insert'].includes(kind) && !status.table)) return;
+    if ((kind === 'heading' && !status.heading.enabled) || (kind === 'insert' && !status.canInsert) || (kind === 'context' && !status.table)) return;
     anchor ??= this.actions.tableCellElement() ?? undefined;
     if (!anchor) return;
     if (this.anchor instanceof HTMLButtonElement) this.anchor.setAttribute('aria-expanded', 'false');
@@ -94,17 +105,19 @@ export class FormatToolbar<T> {
     if (anchor instanceof HTMLButtonElement) anchor.setAttribute('aria-expanded', 'true');
     this.positionPoint = point ?? null; this.target = this.actions.capture();
     this.panel.replaceChildren(); this.panel.hidden = false;
-    this.panel.setAttribute('role', kind === 'insert' ? 'dialog' : 'menu');
-    this.panel.setAttribute('aria-label', kind === 'heading' ? t('본문·제목 선택') : kind === 'insert' ? t('표 크기 선택') : t('표 편집 메뉴'));
+    this.panel.setAttribute('role', kind === 'insert' || kind === 'color' ? 'dialog' : 'menu');
+    this.panel.setAttribute('aria-label', kind === 'color' ? t('글자색') : kind === 'heading' ? t('본문·제목 선택') : kind === 'insert' ? t('표 크기 선택') : t('표 편집 메뉴'));
     this.panel.classList.toggle('insert-popover', kind === 'insert');
-    if (kind === 'heading') {
+    this.panel.classList.toggle('color-popover', kind === 'color');
+    if (kind === 'color') this.colorForm(status.color);
+    else if (kind === 'heading') {
       for (let level = 0; level <= 6; level++) {
         const b = this.item(level ? tr`제목 ${level}` : t('본문'), () => {
           const target = this.target; this.close(); if (target) void this.actions.heading(level, target);
         });
         b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', String(status.heading.level === level));
         b.dataset.level = String(level);
-        b.innerHTML = `<span class="heading-tag">${level ? 'H' + level : '¶'}</span><span class="heading-sample">${level ? t('제목 ') + level : t('본문')}</span><kbd>Ctrl+Alt+${level}</kbd><span class="menu-check">${status.heading.level === level ? '✓' : ''}</span>`;
+        b.innerHTML = `<span class="heading-tag">${level ? 'H' + level : '¶'}</span><span class="heading-sample">${level ? t('제목 ') + level : t('본문')}</span><kbd>${level ? 'Ctrl+' + level : 'Ctrl+Alt+0'}</kbd><span class="menu-check">${status.heading.level === level ? '✓' : ''}</span>`;
       }
     } else if (kind === 'insert') this.insertionForm();
     else {
@@ -136,6 +149,32 @@ export class FormatToolbar<T> {
   }
   private item(label: string, click: () => void) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'format-menu-item'; b.setAttribute('role', 'menuitem'); b.textContent = label; b.onclick = click; this.panel.append(b); return b;
+  }
+  private colorForm(status: ColorStatus) {
+    const title = document.createElement('div'); title.className = 'popover-title'; title.textContent = t('글자색'); this.panel.append(title);
+    const hint = document.createElement('p'); hint.className = 'menu-hint';
+    hint.textContent = !status.enabled ? t('색상을 적용할 텍스트를 선택하세요. 코드 구간은 제외됩니다.') : status.mixed ? t('혼합 색상 · 선택 영역에 적용') : t('선택 영역에 적용');
+    this.panel.append(hint);
+    const apply = (color: string | null) => { const target = this.target; this.close(); if (target) void this.actions.color(color, target); };
+    const reset = this.item(t('기본색 복원'), () => apply(null)); reset.removeAttribute('role'); reset.dataset.color = 'reset'; reset.disabled = !status.enabled;
+    const palette = document.createElement('div'); palette.className = 'color-palette'; palette.setAttribute('role', 'group'); palette.setAttribute('aria-label', t('기본 팔레트'));
+    for (const color of ['#D32F2F', '#C2410C', '#A16207', '#15803D', '#0F766E', '#2563EB', '#7C3AED', '#BE185D', '#F87171', '#FB923C', '#FACC15', '#4ADE80', '#2DD4BF', '#60A5FA', '#A78BFA', '#F472B6', '#111827', '#475569', '#94A3B8', '#FFFFFF']) {
+      const button = document.createElement('button'); button.type = 'button'; button.dataset.color = color;
+      button.style.setProperty('--swatch', color); button.setAttribute('aria-label', color); button.title = color;
+      button.setAttribute('aria-pressed', String(!status.mixed && status.color === color)); button.disabled = !status.enabled;
+      button.onclick = () => apply(color); palette.append(button);
+    }
+    this.panel.append(palette);
+    const form = document.createElement('form'); form.className = 'color-form';
+    form.innerHTML = uiHtml('<label>HEX 색상<input name="hex" aria-label="HEX 색상" placeholder="#D32F2F" pattern="#[0-9a-fA-F]{6}" maxlength="7" required spellcheck="false" autocomplete="off"></label><button type="submit" class="primary">적용</button>');
+    const input = form.elements.namedItem('hex') as HTMLInputElement;
+    input.value = status.mixed ? '' : status.color ?? '#D32F2F'; input.disabled = !status.enabled;
+    form.querySelector('button')!.disabled = !status.enabled;
+    form.onsubmit = event => { event.preventDefault(); const color = normalizeColor(input.value); if (color && form.reportValidity()) apply(color); };
+    this.panel.append(form);
+    const note = document.createElement('p'); note.className = 'menu-hint'; note.textContent = t('외부 편집기의 HTML 지원에 따라 색상이 생략될 수 있습니다.'); this.panel.append(note);
+    const exportButton = this.item(t('색상 제거 Markdown 내보내기'), () => { this.close(); void this.actions.exportWithoutColor(); });
+    exportButton.removeAttribute('role'); exportButton.dataset.action = 'export-no-color';
   }
   private async execute(action: TableAction) {
     await this.actions.prepare();
@@ -169,6 +208,14 @@ export class FormatToolbar<T> {
     paint(3, 2);
   }
   private menuKeys(e: KeyboardEvent) {
+    if (this.panel.classList.contains('color-popover')) {
+      if (e.key === 'Tab') {
+        const targets = [...this.panel.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled)')];
+        const index = targets.indexOf(document.activeElement as HTMLElement);
+        e.preventDefault(); targets[(index + (e.shiftKey ? -1 : 1) + targets.length) % targets.length]?.focus();
+      }
+      return;
+    }
     const insertion = this.panel.classList.contains('insert-popover');
     const buttons = Array.from(this.panel.querySelectorAll<HTMLElement>(insertion ? 'input,button[type="submit"]' : 'button:not(:disabled)'));
     const index = buttons.indexOf(document.activeElement as HTMLElement);

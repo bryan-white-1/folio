@@ -35,7 +35,7 @@ function Test-MsiInstalled([string]$ProductCode) {
     try { $engine.ProductState($ProductCode) -eq 5 }
     finally { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($engine) }
 }
-$previous = '0.2.4'
+$previous = '0.2.5'
 & (Join-Path $PSScriptRoot 'Build-Msi.ps1') -AppDirectory $payload -Qa -PackageVersion $previous
 & (Join-Path $PSScriptRoot 'Build-Msi.ps1') -AppDirectory $payload -Qa
 $old = Join-Path $root "artifacts/Folio-Setup-$previous-win-x64-online-qa.msi"

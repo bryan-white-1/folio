@@ -1,4 +1,4 @@
-Updated: 2026-11-02 17:44 KST (UTC+09:00)
+Updated: 2026-11-07 11:10 KST (UTC+09:00)
 
 # Folio
 
@@ -8,9 +8,9 @@ Edit the document as you read it. Turn Mermaid code into diagrams, navigate by h
 
 **Windows x64 MSI installer.** No account, server, or subscription is required for local editing.
 
-[Download for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.5/Folio-Setup-0.2.5-win-x64-online.msi) · [Release notes](https://github.com/bryan-white-1/folio/releases/tag/v0.2.5) · [Features](#features) · [Build from source](#build-from-source) · [Apache-2.0](LICENSE)
+[Download for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.6/Folio-Setup-0.2.6-win-x64-online.msi) · [Release notes](https://github.com/bryan-white-1/folio/releases/tag/v0.2.6) · [Features](#features) · [Build from source](#build-from-source) · [Apache-2.0](LICENSE)
 
-**Current release: 0.2.5** — Project file tree, independent document tabs, syntax-highlighted Text editing, and improved editor contrast. See the [English release notes](RELEASE_NOTES.md).
+**Current release: 0.2.6** — Text colors, color-free Markdown export, a Markdown/Text new-document menu, and smoother table editing. See the [English release notes](RELEASE_NOTES.md).
 
 ![Folio's English interface with a Markdown heading outline, Mermaid workflow, and editable table](docs/images/folio-overview.png)
 
@@ -22,11 +22,17 @@ Folio brings these everyday needs into a small, focused Windows app. Its purpose
 
 ## Project and Text editing
 
-Folio 0.2.5 adds a project file tree and document tabs, plus a Text editor for Python, JSON, Java, C, C++, and plain text. These features are included in the MSI and portable ZIP.
+Folio includes a project file tree and document tabs, plus a Text editor for Python, JSON, Java, C, C++, and plain text. These features are included in the MSI and portable ZIP.
 
 Open a folder to browse its children. Markdown files use the existing rendered/source editor; other supported UTF-8 text files use Text mode. Tabs retain independent undo, selection, and scroll positions. Close a tab with `Ctrl+W`, switch with `Ctrl+Tab`, and use **More → New Text / Save all / Reload from disk**. Text mode supports language selection, indentation settings, word wrap, and `Ctrl+G` to go to a line. Files remain local; syntax highlighting does not execute code.
 
 Text saves preserve BOM, untouched line endings (including mixed endings), whitespace, and the absence of a final newline. Recovery and external-change checks cover all open documents. Folder browsing loads children on expansion; dependency/build directories can be shown using the exclusion toggle. Linked directories are not expanded. Legacy retains its single-document Markdown workflow.
+
+## Text colors and editing improvements
+
+Apply text colors in rendered or source mode using a 20-color palette or a six-digit HEX value. Restore the default color, undo changes, or export a color-free `.plain.md` copy without changing the open document. Colors use inline HTML spans; external Markdown tools may omit them.
+
+Choose Markdown or Text from **+ New**. Press Enter at the end of the last table cell to add a row; other table Enter behavior is preserved. Checklist alignment and table clipboard selection are also improved.
 
 ## Features
 
@@ -80,11 +86,11 @@ Screenshots show the 0.2.2 native app's English interface with sample documents.
 
 Folio uses a **C++/Win32 host and the shared Microsoft WebView2 Runtime**, with Milkdown, CodeMirror, and Mermaid inside the editor. The native package does not bundle .NET or Windows App SDK runtimes.
 
-The `Folio-Setup-0.2.5-win-x64-online.msi` download includes the editor, examples, documentation, and WebView2 bootstrapper. Exact bytes and SHA-256 checksums are supplied with the [release assets](https://github.com/bryan-white-1/folio/releases/tag/v0.2.5). A shared WebView2 installation is separate: if it is missing, the online installer downloads it during setup. Local document editing then works offline.
+The `Folio-Setup-0.2.6-win-x64-online.msi` download includes the editor, examples, documentation, and WebView2 bootstrapper. Exact bytes and SHA-256 checksums are supplied with the [release assets](https://github.com/bryan-white-1/folio/releases/tag/v0.2.6). A shared WebView2 installation is separate: if it is missing, the online installer downloads it during setup. Local document editing then works offline.
 
 ## Install
 
-1. Download [Folio 0.2.5 for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.5/Folio-Setup-0.2.5-win-x64-online.msi).
+1. Download [Folio 0.2.6 for Windows x64](https://github.com/bryan-white-1/folio/releases/download/v0.2.6/Folio-Setup-0.2.6-win-x64-online.msi).
 2. Run the installer and launch **Folio** from the Start menu. Folio installs per user without requiring administrator rights for the app.
 3. Open a Markdown file, or explore **More → Example documents**.
 

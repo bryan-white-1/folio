@@ -14,7 +14,7 @@ export function installNativeShell(bridge: Bridge | undefined) {
   root.dataset.nativeShell = 'true';
   const app = document.getElementById('app')!;
   const shell = document.createElement('div'); shell.id = 'native-shell';
-  shell.innerHTML = uiHtml(`<header class="host-bar"><div class="host-brand"><span>f.</span><b>Folio</b></div><button id="host-path" aria-label="파일 전체 경로 보기 및 복사">시작하기.md</button><nav aria-label="문서 작업"><button data-host-command="new">＋ 새 문서</button><button data-host-command="open">열기</button><button data-host-command="openFolder">폴더 열기</button><button data-host-command="recent">최근 문서</button><button data-host-command="save" class="primary">저장</button><button data-host-command="configuration" aria-label="설정 · Configuration">⚙</button><button id="host-more" aria-label="더 보기" aria-expanded="false">⋯</button></nav></header><div class="host-workspace"><aside class="host-sidebar" aria-label="문서 목차"><div class="host-outline-title"><b>문서 목차</b><span id="host-count">00</span></div><input id="host-filter" aria-label="목차에서 찾기" placeholder="목차에서 찾기"><div id="host-outline" role="tree" aria-label="제목 목록"></div><p id="host-empty">제목을 쓰면 목차가 나타납니다.</p><footer><span id="host-status">편집기 준비 중…</span><small>LOCAL FIRST · 나만의 문서 공간</small></footer></aside><div id="host-grip" role="separator" tabindex="0" aria-label="목차 너비" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="420" aria-valuenow="260"></div><section id="host-editor" aria-label="문서 편집 영역"></section></div><div id="host-menu" role="menu" hidden><button role="menuitem" data-host-command="newText">새 Text</button><button role="menuitem" data-host-command="saveAll">모두 저장</button><button role="menuitem" data-host-command="reload">디스크에서 다시 읽기</button><button role="menuitem" data-host-command="saveAs">다른 이름으로 저장 <small>Ctrl+Shift+S</small></button><button role="menuitem" data-host-command="image">이미지 삽입…</button><button role="menuitem" data-host-command="examples">기본 예제</button><hr><button role="menuitem" data-host-command="toggleMode">원문 / 렌더링 전환</button><button role="menuitem" data-host-command="sidebar">목차 표시 / 숨기기</button><button role="menuitem" data-host-command="theme">밝은 / 어두운 테마</button><button role="menuitem" data-host-command="configuration">설정 · Configuration</button></div>`);
+  shell.innerHTML = uiHtml(`<header class="host-bar"><div class="host-brand"><span>f.</span><b>Folio</b></div><button id="host-path" aria-label="파일 전체 경로 보기 및 복사">시작하기.md</button><nav aria-label="문서 작업"><div class="host-new"><button id="host-new" aria-haspopup="menu" aria-controls="host-new-menu" aria-expanded="false"><span>＋ 새 문서</span> <span aria-hidden="true">▾</span></button><div id="host-new-menu" role="menu" aria-labelledby="host-new" hidden><button role="menuitem" data-host-command="new"><span>Markdown (.md)</span><small>Ctrl+N</small></button><button role="menuitem" data-host-command="newText">텍스트 (.txt)</button></div></div><button data-host-command="open">열기</button><button data-host-command="openFolder">폴더 열기</button><button data-host-command="recent">최근 문서</button><button data-host-command="save" class="primary">저장</button><button data-host-command="configuration" aria-label="설정 · Configuration">⚙</button><button id="host-more" aria-haspopup="menu" aria-controls="host-menu" aria-label="더 보기" aria-expanded="false">⋯</button></nav></header><div class="host-workspace"><aside class="host-sidebar" aria-label="문서 목차"><div class="host-outline-title"><b>문서 목차</b><span id="host-count">00</span></div><input id="host-filter" aria-label="목차에서 찾기" placeholder="목차에서 찾기"><div id="host-outline" role="tree" aria-label="제목 목록"></div><p id="host-empty">제목을 쓰면 목차가 나타납니다.</p><footer><span id="host-status">편집기 준비 중…</span><small>LOCAL FIRST · 나만의 문서 공간</small></footer></aside><div id="host-grip" role="separator" tabindex="0" aria-label="목차 너비" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="420" aria-valuenow="260"></div><section id="host-editor" aria-label="문서 편집 영역"></section></div><div id="host-menu" role="menu" hidden><button role="menuitem" data-host-command="newText">새 Text</button><button role="menuitem" data-host-command="saveAll">모두 저장</button><button role="menuitem" data-host-command="reload">디스크에서 다시 읽기</button><button role="menuitem" data-host-command="saveAs">다른 이름으로 저장 <small>Ctrl+Shift+S</small></button><button role="menuitem" data-host-command="image">이미지 삽입…</button><button role="menuitem" data-host-command="examples">기본 예제</button><hr><button role="menuitem" data-host-command="toggleMode">원문 / 렌더링 전환</button><button role="menuitem" data-host-command="sidebar">목차 표시 / 숨기기</button><button role="menuitem" data-host-command="theme">밝은 / 어두운 테마</button><button role="menuitem" data-host-command="configuration">설정 · Configuration</button></div>`);
   document.body.append(shell); shell.querySelector('#host-editor')!.append(app);
   const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   const send = (packet: Packet) => bridge.postMessage(packet);
@@ -26,7 +26,19 @@ export function installNativeShell(bridge: Bridge | undefined) {
   const dialogs: Packet[] = [];
   let localDialog: string | undefined;
   const shellReceive = (packet: Packet) => { void (window as any).folio?.receive(packet); };
-  function closeMenu() { el('host-menu').hidden = true; el('host-more').setAttribute('aria-expanded', 'false'); }
+  const menus = [['host-new', 'host-new-menu'], ['host-more', 'host-menu']] as const;
+  function closeMenu(restoreFocus = false) {
+    for (const [triggerId, menuId] of menus) {
+      const menu = el(menuId);
+      if (restoreFocus && !menu.hidden) el(triggerId).focus();
+      menu.hidden = true; el(triggerId).setAttribute('aria-expanded', 'false');
+    }
+  }
+  function openMenu(triggerId: string, menuId: string, last = false) {
+    closeMenu(); el(menuId).hidden = false; el(triggerId).setAttribute('aria-expanded', 'true');
+    const buttons = el(menuId).querySelectorAll<HTMLButtonElement>('button');
+    buttons[last ? buttons.length - 1 : 0]?.focus();
+  }
   function createDialog(title: string, kind = 'local') {
     const dialog = document.createElement('dialog'); dialog.className = 'host-dialog';
     const heading = document.createElement('h2'); heading.id = 'host-dialog-title'; heading.textContent = title;
@@ -117,7 +129,8 @@ export function installNativeShell(bridge: Bridge | undefined) {
     headings.filter(h => visible.has(h.id)).forEach(h => {
       let parent = byId.get(h.parentId ?? ''), depth = 0; while (parent) { if (!filter && collapsed.has(parent.id)) return; depth++; parent = byId.get(parent.parentId ?? ''); }
       const row = document.createElement('div'); row.className = 'host-tree-row'; row.setAttribute('role', 'treeitem'); row.setAttribute('aria-level', String(depth + 1)); row.tabIndex = h.id === active || !items.length ? 0 : -1; row.dataset.heading = h.id; row.style.paddingLeft = `${8 + depth * 15}px`; row.setAttribute('aria-selected', String(h.id === active)); row.title = `H${h.depth} · ${h.label}`;
-      const children = headings.some(x => x.parentId === h.id); const caret = document.createElement('span'); caret.className = 'host-caret'; caret.textContent = children ? collapsed.has(h.id) && !filter ? '›' : '⌄' : '';
+      const children = headings.some(x => x.parentId === h.id); const caret = document.createElement('span'); caret.className = 'host-caret'; caret.setAttribute('aria-hidden', 'true');
+      if (children) caret.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M4 2 8 6 4 10"/></svg>';
       if (children) { row.setAttribute('aria-expanded', String(!collapsed.has(h.id) || !!filter)); caret.onclick = e => { e.stopPropagation(); if (collapsed.has(h.id)) collapsed.delete(h.id); else collapsed.add(h.id); renderTree(); }; }
       const text = document.createElement('span'); text.textContent = h.label || t('(빈 제목)'); row.append(caret, text); row.onclick = () => shellReceive({ type: 'jump', id: h.id }); row.oncontextmenu = e => { e.preventDefault(); rename(h); };
       row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); row.click(); } else if (e.key === 'F2' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); rename(h); } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[items.indexOf(row) + (e.key === 'ArrowDown' ? 1 : -1)]?.focus(); } else if (children && ['ArrowLeft', 'ArrowRight'].includes(e.key)) { e.preventDefault(); if (e.key === 'ArrowLeft') collapsed.add(h.id); else collapsed.delete(h.id); renderTree(); } };
@@ -126,16 +139,29 @@ export function installNativeShell(bridge: Bridge | undefined) {
     el('host-count').textContent = String(headings.length).padStart(2, '0'); el('host-empty').hidden = items.length > 0; el('host-empty').textContent = filter ? t('일치하는 제목이 없습니다.') : t('제목을 쓰면 목차가 나타납니다.\n# 제목으로 시작해보세요.');
     if (oldFocus) items.find(row => row.dataset.heading === oldFocus)?.focus();
   }
-  function action(name: string) { closeMenu(); if (name === 'recent') recent(); else if (name === 'configuration') settings(); else if (name === 'examples') examples(); else if (name === 'sidebar') shell.classList.toggle('host-no-sidebar'); else command(name); }
+  function action(name: string) { closeMenu(true); if (name === 'recent') recent(); else if (name === 'configuration') settings(); else if (name === 'examples') examples(); else if (name === 'sidebar') shell.classList.toggle('host-no-sidebar'); else command(name); }
   shell.querySelectorAll<HTMLElement>('[data-host-command]').forEach(b => b.onclick = () => action(b.dataset.hostCommand!));
   el('host-path').onclick = showPath;
   el('host-path').oncontextmenu = e => { e.preventDefault(); if (path) command('copyPath'); };
-  el('host-more').onclick = () => { const menu = el('host-menu'); menu.hidden = !menu.hidden; el('host-more').setAttribute('aria-expanded', String(!menu.hidden)); if (!menu.hidden) menu.querySelector<HTMLElement>('button')?.focus(); };
+  for (const [triggerId, menuId] of menus) {
+    el(triggerId).onclick = () => { if (el(menuId).hidden) openMenu(triggerId, menuId); else closeMenu(true); };
+    el(triggerId).onkeydown = e => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openMenu(triggerId, menuId, e.key === 'ArrowUp'); } };
+  }
   el('host-filter').oninput = renderTree;
-  document.addEventListener('pointerdown', e => { if (!(e.target as HTMLElement).closest('#host-menu,#host-more')) closeMenu(); });
+  const menuSelector = '#host-menu,#host-more,#host-new-menu,#host-new';
+  document.addEventListener('pointerdown', e => { if (!(e.target as HTMLElement).closest(menuSelector)) closeMenu(); });
+  document.addEventListener('focusin', e => { if (!(e.target as HTMLElement).closest(menuSelector)) closeMenu(); });
   document.addEventListener('keydown', e => {
     const target = e.target as HTMLElement;
-    if (target.closest('#host-menu')) { if (e.key === 'Escape') { closeMenu(); el('host-more').focus(); } if (['ArrowDown', 'ArrowUp'].includes(e.key)) { e.preventDefault(); const buttons = [...el('host-menu').querySelectorAll<HTMLButtonElement>('button')]; const index = buttons.indexOf(target as HTMLButtonElement); buttons[(index + (e.key === 'ArrowDown' ? 1 : buttons.length - 1)) % buttons.length].focus(); } }
+    const menu = target.closest('#host-menu,#host-new-menu');
+    if (menu) {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMenu(true); return; }
+      if (e.key === 'Tab') { closeMenu(true); return; }
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
+        e.preventDefault(); const buttons = [...menu.querySelectorAll<HTMLButtonElement>('button')]; const index = buttons.indexOf(target as HTMLButtonElement);
+        buttons[e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1 : (index + (e.key === 'ArrowDown' ? 1 : buttons.length - 1)) % buttons.length].focus();
+      }
+    }
     if (e.isComposing || modal) return;
     if (e.ctrlKey && !target.closest('#app') && (e.key.toLowerCase() === 'f' || (e.shiftKey && e.key.toLowerCase() === 'm'))) { e.preventDefault(); e.stopImmediatePropagation(); command(e.key.toLowerCase() === 'f' ? 'find' : 'toggleMode'); }
     if (e.ctrlKey && ['s', 'o', 'n'].includes(e.key.toLowerCase()) && !target.closest('#app')) { e.preventDefault(); e.stopImmediatePropagation(); const key = e.key.toLowerCase(); action(key === 's' ? e.shiftKey ? 'saveAs' : 'save' : key === 'o' ? e.shiftKey ? 'recent' : 'open' : 'new'); }

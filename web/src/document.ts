@@ -3,6 +3,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkFrontmatter from 'remark-frontmatter';
+import { readTextColors } from './text-color-markdown';
 
 export interface Heading { id: string; depth: number; label: string; from: number; to: number; sectionEnd: number; parentId: string | null }
 type Node = { type: string; lang?: string; depth?: number; value?: string; alt?: string; url?: string; children?: Node[]; position?: { start: { offset: number }; end: { offset: number } } };
@@ -31,6 +32,7 @@ export function codeBlocks(text: string) {
 
 export function analyze(text: string): { headings: Heading[]; protectedReason: string | null; images: string[] } {
   const tree = parser.parse(text) as unknown as Node;
+  readTextColors(tree);
   const headings: Heading[] = [];
   const images: string[] = [];
   const parents: Heading[] = [];

@@ -1,4 +1,20 @@
-Updated: 2026-11-02 17:57 KST (UTC+09:00)
+Updated: 2026-11-07 11:21 KST (UTC+09:00)
+
+# Folio 0.2.6 — Text colors and editing improvements
+
+- **Text colors:** rendered/source selection formatting, 20-color palette, HEX input, default-color restoration, mixed-color state and shared Undo/Redo. Colors persist as inline HTML spans; external Markdown renderers may omit them.
+- **Color-free export:** create a `.plain.md` copy while preserving the open document, path and editing history.
+- **New documents:** choose Markdown or Text from **+ New**, with keyboard navigation and English/Korean labels; `Ctrl+N` continues to create Markdown.
+- **Table editing:** Enter at the end of the last cell adds a body row with inherited widths/alignment. Improved clipboard selection synchronization.
+- **Checklist layout:** first-line checkbox alignment remains consistent across line spacing, wrapping and nesting.
+
+**Downloads:** Windows x64 online MSI, portable ZIP, SHA-256 checksums and MSI manifest. Close Folio before upgrading. MSI updates previous MSI installations; uninstall an older EXE edition first. WebView2 is required and downloaded by the online MSI only when missing. Packages are unsigned.
+
+**Validation:** 44 unit tests, 114 production UI tests, native storage checks, 13 real-WebView2 integration checks, six refresh checks and six workspace scenarios passed. Isolated MSI install, 0.2.5→0.2.6 upgrade, payload hashes, repair, downgrade protection, installed-app integration and uninstall/document preservation passed. Windows 11 x64 with existing WebView2 was tested; fresh runtime installation and native export-dialog interaction remain unverified. See [TEST_RESULTS.md](TEST_RESULTS.md).
+
+[Changes since 0.2.5](https://github.com/bryan-white-1/folio/compare/v0.2.5...v0.2.6)
+
+---
 
 # Folio 0.2.5 — Project tabs and Text editing
 
