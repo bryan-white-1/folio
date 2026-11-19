@@ -9,8 +9,24 @@ test('Windows layout has one compact toolbar with both editor modes', async ({ p
   await expect(page.locator('.editor-header')).toBeHidden();
   await expect(page.getByRole('tab', { name: '렌더링' })).toBeVisible();
   await expect(page.getByRole('tab', { name: '원문' })).toBeVisible();
-  expect((await page.locator('#editor-scroll').boundingBox())!.y).toBe(48);
+  const toolbar = page.locator('.format-bar');
+  await expect(toolbar).toHaveCSS('height', '36px');
+  await expect(page.locator('#heading-picker')).toHaveCSS('height', '28px');
+  expect((await page.locator('#editor-scroll').boundingBox())!.y).toBe(36);
   await page.getByRole('tab', { name: '원문' }).click(); await expect(page.locator('.cm-editor')).toBeVisible();
+  await page.setViewportSize({ width: 560, height: 700 });
+  expect((await toolbar.boundingBox())!.height).toBeGreaterThan(36);
+  await expect(page.locator('#find')).toBeInViewport({ratio:1});
+  await page.setViewportSize({ width: 1060, height: 900 });
+  await page.evaluate(() => (window as any).folio.receive({type:'load', documentId:'text', name:'example.py', text:'pass', dirty:false}));
+  await expect(toolbar).toHaveCSS('height', '36px');
+  await expect(page.getByRole('combobox', {name:'들여쓰기'})).toHaveCSS('height', '28px');
+  expect((await page.locator('#editor-scroll').boundingBox())!.y).toBe(36);
+  await page.setViewportSize({ width: 320, height: 700 });
+  expect((await toolbar.boundingBox())!.height).toBeGreaterThan(36);
+  for (const control of await page.locator('.text-tools > *, #find').all()) {
+    await expect(control).toBeInViewport({ratio:1});
+  }
 });
 
 test('configuration changes body and table spacing and document position without editing Markdown', async ({ page }) => {

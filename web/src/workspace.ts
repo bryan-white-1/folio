@@ -1,13 +1,54 @@
 import { t, uiHtml } from './i18n';
+import { detectLanguage } from './text-language';
 type Packet = { type: string; [key: string]: any };
-type Tab = { id: string; path: string; name: string; kind: string; dirty: boolean; external: boolean };
+type Tab = { id: string; path: string; name: string; kind: string; dirty: boolean; external: boolean; externalVersion: string };
 type Entry = { path: string; name: string; directory: boolean; link: boolean };
+
+const rightChevron = 'M6 3.5 10.5 8 6 12.5';
+function chevronIcon(path: string) {
+  return `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${path}"/></svg>`;
+}
+
+function tabIcon(item: Tab) {
+  const markdown = item.kind === 'markdown';
+  const code = detectLanguage(item.name) !== 'plain' || /\.[cm]?jsx?$/i.test(item.name);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'tab-file-icon');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(svg.namespaceURI!, 'path');
+  const page = 'M5 2.5h9l5 5V21H5z M14 3v5h5 ';
+  const detail = item.kind === 'image' ? 'M7 17l3-4 2 2 2-3 3 5z' : code ? 'M10 11l-3 3 3 3m4-6 3 3-3 3' : 'M8 12h8m-8 4h6';
+  path.setAttribute('d', markdown
+    ? 'M2 5h20v14H2z M5 15V9l3 3 3-3v6 M17 9v6m-3-3 3 3 3-3'
+    : page + detail);
+  svg.append(path);
+  return svg;
+}
 export function installWorkspace(shell: HTMLElement, send: (p: Packet) => void) {
   const command = (name: string, path = '') => send({ type: 'command', name, path });
   const strip = document.createElement('div'); strip.className = 'document-tabs';
   const tabs = document.createElement('div'); tabs.className = 'tab-items'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', t('열린 파일'));
-  const list = document.createElement('select'); list.className = 'open-file-list'; list.setAttribute('aria-label', t('열린 파일 목록')); list.onchange = () => command('activateTab', list.value);
-  strip.append(tabs, list); document.getElementById('app')!.prepend(strip);
+  const nav = document.createElement('div'); nav.className = 'tab-nav';
+  function navButton(label: string, chevron: string) {
+    const button = document.createElement('button');
+    button.title = t(label); button.setAttribute('aria-label', button.title);
+    button.innerHTML = chevronIcon(chevron);
+    nav.append(button); return button;
+  }
+  const prev = navButton('이전 탭', 'M10 3.5 5.5 8 10 12.5');
+  const next = navButton('다음 탭', rightChevron);
+  const toggle = navButton('열린 파일 목록', 'M3.5 6 8 10.5 12.5 6');
+  const list = document.createElement('div'); list.id = 'open-file-list'; list.hidden = true;
+  list.setAttribute('role', 'menu'); list.setAttribute('aria-label', t('열린 파일 목록'));
+  toggle.setAttribute('aria-haspopup', 'menu'); toggle.setAttribute('aria-controls', list.id); toggle.setAttribute('aria-expanded', 'false');
+  strip.append(tabs, nav, list); document.getElementById('app')!.prepend(strip);
+  const banner = document.createElement('div'); banner.className = 'external-notice'; banner.hidden = true;
+  const message = document.createElement('span'); message.setAttribute('role', 'status');
+  const keep = document.createElement('button'); keep.textContent = t('계속 편집');
+  const action = document.createElement('button');
+  banner.append(message, keep, action); strip.after(banner);
+  const dismissed = new Map<string, string>();
   const sidebar = shell.querySelector<HTMLElement>('.host-sidebar')!;
   const outline = document.createElement('div'); outline.className = 'outline-pane';
   for (const node of [...sidebar.children]) if (node.tagName !== 'FOOTER') outline.append(node);
@@ -56,11 +97,19 @@ export function installWorkspace(shell: HTMLElement, send: (p: Packet) => void) 
         if (query && !entry.directory && !entry.name.toLocaleLowerCase().includes(query)) continue;
         const row = document.createElement('div'); row.className = 'file-tree-row'; row.setAttribute('role', 'treeitem'); row.setAttribute('aria-level', String(depth + 1)); row.tabIndex = 0; row.dataset.path = entry.path; row.title = entry.path;
         row.style.paddingLeft = `${10 + depth * 15}px`; row.setAttribute('aria-selected', String(equal(selectedPath || currentPath, entry.path)));
-        const open = expanded.has(entry.path), caret = document.createElement('button'); caret.tabIndex = -1; caret.className = 'file-caret'; caret.textContent = entry.directory ? entry.link ? '↗' : open ? '⌄' : '›' : '·'; caret.setAttribute('aria-label', t('펼치기 / 접기'));
+        const open = expanded.has(entry.path);
+        const caret = document.createElement('span'); caret.className = 'file-caret'; caret.setAttribute('aria-hidden', 'true');
         const label = document.createElement('span'); label.textContent = entry.name; row.append(caret, label);
         const toggle = () => { if (!entry.directory || entry.link) return; if (expanded.has(entry.path)) expanded.delete(entry.path); else { expanded.add(entry.path); request(entry.path); } render(); };
-        if (entry.directory) { row.setAttribute('aria-expanded', String(open)); caret.onclick = e => { e.stopPropagation(); toggle(); }; }
-        if (entry.link && entry.directory) row.title += '\n' + t('연결 폴더는 순환 탐색 방지를 위해 펼치지 않습니다.');
+        if (entry.directory && !entry.link) {
+          row.setAttribute('aria-expanded', String(open));
+          caret.innerHTML = chevronIcon(rightChevron);
+          caret.onclick = e => { e.stopPropagation(); row.focus(); toggle(); };
+          caret.ondblclick = e => e.stopPropagation();
+        } else if (entry.directory && entry.link) {
+          caret.textContent = '↗';
+          row.title += '\n' + t('연결 폴더는 순환 탐색 방지를 위해 펼치지 않습니다.');
+        }
         const activate = () => { if (entry.directory) toggle(); else command('openPath', entry.path); };
         row.onclick = () => { selectedPath = entry.path; tree.querySelectorAll<HTMLElement>('[data-path]').forEach(r => r.setAttribute('aria-selected', String(r === row))); };
         row.ondblclick = activate; row.oncontextmenu = e => { e.preventDefault(); command('copySelectedPath', entry.path); };
@@ -77,25 +126,109 @@ export function installWorkspace(shell: HTMLElement, send: (p: Packet) => void) 
     add(root, 0); if (!tree.childElementCount) tree.textContent = t('표시할 파일이 없습니다.');
     if (focused) [...tree.querySelectorAll<HTMLElement>('[data-path]')].find(row => row.dataset.path === focused)?.focus();
   }
-  function renderTabs() {
+  function updateExternalNotice() {
+    for (const [id, version] of dismissed) {
+      if (!entries.some(tab => tab.id === id && tab.externalVersion === version)) dismissed.delete(id);
+    }
+    const tab = entries.find(item => item.id === currentId);
+    banner.hidden = !tab?.external || dismissed.has(currentId);
+    if (!tab || banner.hidden) return;
+    const deleted = tab.externalVersion === 'deleted';
+    action.hidden = deleted && tab.kind === 'image';
+    const label = deleted ? t('디스크에서 파일이 삭제되었습니다.') : t('파일이 외부에서 변경되었습니다.');
+    if (message.textContent !== label) message.textContent = label;
+    keep.hidden = deleted || !tab.dirty;
+    action.textContent = deleted ? t('다른 이름으로 저장') : tab.dirty ? t('내 변경을 버리고 다시 읽기') : t('다시 읽기');
+    keep.onclick = () => {
+      dismissed.set(tab.id, tab.externalVersion); banner.hidden = true;
+      document.querySelector<HTMLElement>(document.getElementById('source-editor')!.hidden ? '.ProseMirror' : '.cm-content')?.focus();
+    };
+    action.onclick = () => send({ type: 'command', documentId: tab.id, name: deleted ? 'saveAs' : 'reload', path: tab.dirty && !deleted ? 'discard' : '' });
+  }
+  let focusedId = '';
+  function focusTab(index: number) {
+    const button = tabs.children[index]?.querySelector<HTMLButtonElement>('.tab-select');
+    if (!button) return;
+    button.focus({preventScroll:true}); tabs.children[index].scrollIntoView({block:'nearest', inline:'nearest'});
+  }
+  function moveTab(delta: number) {
+    const index = entries.findIndex(item => item.id === focusedId);
+    focusTab((index + delta + entries.length) % entries.length);
+  }
+  prev.onclick = () => moveTab(-1);
+  next.onclick = () => moveTab(1);
+  function fitMenu() {
+    list.style.setProperty('--available-height', `${Math.max(0, window.innerHeight - strip.getBoundingClientRect().bottom - 4)}px`);
+  }
+  function showMenu(open: boolean) {
+    list.hidden = !open; toggle.setAttribute('aria-expanded', String(open));
+    if (open) { fitMenu(); list.querySelector<HTMLButtonElement>('[aria-checked=true]')?.focus(); }
+  }
+  toggle.onclick = () => showMenu(list.hidden);
+  toggle.onkeydown = e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); showMenu(true); }
+  };
+  list.onkeydown = e => {
+    if (e.key === 'Escape' || (e.key === 'Tab' && !e.ctrlKey)) {
+      if (e.key === 'Escape') e.preventDefault();
+      showMenu(false); toggle.focus(); return;
+    }
+    const index = [...list.children].indexOf(document.activeElement!);
+    const positions: Record<string, number> = { ArrowDown:index + 1, ArrowUp:index - 1, Home:0, End:list.children.length - 1 };
+    if (Object.hasOwn(positions, e.key)) {
+      e.preventDefault();
+      const pos = (positions[e.key] + list.children.length) % list.children.length;
+      (list.children[pos] as HTMLElement)?.focus();
+    }
+  };
+  document.addEventListener('pointerdown', e => { if (!list.hidden && !list.contains(e.target as Node) && !toggle.contains(e.target as Node)) showMenu(false); });
+  document.addEventListener('focusin', e => {
+    if (!strip.contains(e.target as Node)) focusedId = currentId;
+    if (!list.hidden && !list.contains(e.target as Node) && e.target !== toggle) showMenu(false);
+  });
+  window.addEventListener('resize', () => { if (!list.hidden) fitMenu(); });
+  function renderTabs(changedDocument: boolean) {
     const key = JSON.stringify([entries, currentId]); if (key === tabKey) return; tabKey = key;
-    const focusId = (document.activeElement as HTMLElement)?.closest<HTMLElement>('[data-tab-id]')?.dataset.tabId;
+    updateExternalNotice();
+    const restoreTabFocus = tabs.contains(document.activeElement);
+    const menuFocusId = (document.activeElement as HTMLElement)?.dataset.fileId;
+    if (changedDocument || !entries.some(item => item.id === focusedId)) focusedId = currentId;
+    if (changedDocument || !entries.length) showMenu(false);
     tabs.replaceChildren(); list.replaceChildren();
     for (const item of entries) {
       const row = document.createElement('div'); row.className = 'document-tab'; row.dataset.tabId = item.id; row.classList.toggle('active', item.id === currentId);
       const select = document.createElement('button'); select.className = 'tab-select'; select.setAttribute('role', 'tab'); select.setAttribute('aria-selected', String(item.id === currentId)); select.tabIndex = item.id === currentId ? 0 : -1;
       const duplicate = entries.filter(x => x.name.toLocaleLowerCase() === item.name.toLocaleLowerCase()).length > 1;
       const parent = item.path.split(/[\\/]/).slice(-2, -1)[0] ?? '';
-      select.textContent = `${item.kind === 'markdown' ? 'M↓' : '</>'}  ${item.name}${duplicate && parent ? ' — ' + parent : ''}${item.dirty ? ' ●' : ''}${item.external ? ' ⚠' : ''}`;
-      select.title = (item.path || item.name) + (item.external ? '\n' + t('외부 변경 · 다시 읽기 또는 저장 시 확인') : ''); select.onclick = () => command('activateTab', item.id);
-      select.onkeydown = e => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); const i = entries.indexOf(item); const next = entries[e.key === 'Home' ? 0 : e.key === 'End' ? entries.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : entries.length - 1)) % entries.length]; command('activateTab', next.id); } };
+      const filename = document.createElement('span'); filename.className = 'tab-name';
+      filename.textContent = duplicate && parent ? `${item.name} — ${parent}` : item.name;
+      select.append(tabIcon(item), filename);
+      if (item.dirty) select.append('●');
+      if (item.external) select.append('⚠');
+      row.title = [item.name, item.path, item.external && t('외부 변경 · 다시 읽기 또는 저장 시 확인')].filter(Boolean).join('\n');
+      select.onclick = () => command('activateTab', item.id);
+      select.onfocus = () => { focusedId = item.id; };
+      select.onkeydown = e => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); moveTab(e.key === 'ArrowLeft' ? -1 : 1); }
+        else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); focusTab(e.key === 'Home' ? 0 : entries.length - 1); }
+      };
       const close = document.createElement('button'); close.className = 'tab-close'; close.textContent = '×'; close.setAttribute('aria-label', `${t('탭 닫기')}: ${item.name}`); close.onclick = () => command('closeTab', item.id);
       row.append(select, close); tabs.append(row);
-      const option = document.createElement('option'); option.value = item.id; option.textContent = `${item.dirty ? '● ' : ''}${item.path || item.name}`; list.append(option);
+      const option = document.createElement('button'); option.tabIndex = -1; option.dataset.fileId = item.id;
+      option.setAttribute('role', 'menuitemradio'); option.setAttribute('aria-checked', String(item.id === currentId));
+      option.title = item.path || item.name;
+      option.append(tabIcon(item), filename.cloneNode(true));
+      if (item.dirty) option.append('●');
+      option.onclick = () => { showMenu(false); toggle.focus(); command('activateTab', item.id); };
+      list.append(option);
     }
-    list.value = currentId; list.hidden = !entries.length;
-    const active = [...tabs.children].find(row => (row as HTMLElement).dataset.tabId === currentId) as HTMLElement | undefined;
-    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); if (focusId) active?.querySelector<HTMLElement>('.tab-select')?.focus();
+    prev.disabled = next.disabled = entries.length < 2; toggle.disabled = !entries.length;
+    if (restoreTabFocus) focusTab(entries.findIndex(item => item.id === focusedId));
+    else if (changedDocument) tabs.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (!list.hidden) {
+      const options = [...list.querySelectorAll('button')];
+      (options.find(option => option.dataset.fileId === menuFocusId) ?? options.find(option => option.dataset.fileId === currentId))?.focus();
+    }
   }
   document.addEventListener('keydown', e => {
     if (e.isComposing || document.querySelector('dialog[open]') || !e.ctrlKey) return;
@@ -105,10 +238,14 @@ export function installWorkspace(shell: HTMLElement, send: (p: Packet) => void) 
   }, true);
   return (packet: Packet) => {
     if (packet.type === 'hostState') {
+      shell.querySelector<HTMLButtonElement>('[data-host-command="save"]')!.disabled = packet.kind === 'image';
       const changedDocument = currentId !== packet.documentId;
-      entries = packet.tabs ?? []; currentId = packet.documentId ?? ''; currentPath = packet.path ?? ''; renderTabs();
+      entries = packet.tabs ?? []; currentId = packet.documentId ?? ''; currentPath = packet.path ?? ''; renderTabs(changedDocument);
       if (packet.root !== root) { root = packet.root ?? ''; expanded.clear(); reset(); }
-      if (packet.kind === 'text') { outline.querySelector<HTMLElement>('#host-empty')!.textContent = t('Text 파일에는 목차가 없습니다.'); if (changedDocument && pane === 'outline') selectPane('files'); }
+      if (packet.kind === 'text' || packet.kind === 'image') {
+        outline.querySelector<HTMLElement>('#host-empty')!.textContent = packet.kind === 'image' ? t('이미지에는 목차가 없습니다.') : t('Text 파일에는 목차가 없습니다.');
+        if (changedDocument && pane === 'outline') selectPane('files');
+      }
       tree.querySelectorAll<HTMLElement>('[data-path]').forEach(row => row.classList.toggle('current-file', equal(row.dataset.path!, currentPath)));
     } else if (packet.type === 'folderRoot') { root = packet.root; expanded.clear(); reset(); selectPane('files'); }
     else if (packet.type === 'folderEntries' && equal(packet.root, root) && pending.get(packet.path) === packet.requestId) { pending.delete(packet.path); cache.set(packet.path, { entries: packet.entries, error: packet.error }); render(); }

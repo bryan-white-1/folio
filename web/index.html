@@ -45,6 +45,17 @@
         <button id="search-close" title="찾기 닫기 (Esc)" aria-label="찾기 닫기">×</button>
       </div>
       <div id="notice" role="status" hidden></div>
+      <section id="image-preview" aria-label="이미지 미리보기" hidden>
+        <div class="image-controls">
+          <span id="image-info" role="status"></span>
+          <button id="image-zoom-out" aria-label="축소" title="축소" disabled>−</button>
+          <input id="image-zoom" type="text" inputmode="decimal" aria-label="확대율" title="확대율 입력 (10~400%)" autocomplete="off" spellcheck="false" disabled />
+          <button id="image-zoom-in" aria-label="확대" title="확대" disabled>+</button>
+          <button id="image-fit" aria-pressed="true">창에 맞추기</button>
+          <button id="image-original" aria-pressed="false">100%</button>
+        </div>
+        <div class="image-viewport" tabindex="0"></div>
+      </section>
       <main id="editor-scroll">
         <div id="rendered-editor" role="tabpanel" aria-label="렌더링 편집"></div>
         <div id="source-editor" role="tabpanel" aria-label="원문 편집" hidden></div>

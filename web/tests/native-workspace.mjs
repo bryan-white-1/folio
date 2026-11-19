@@ -1,7 +1,7 @@
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, access, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -42,7 +42,120 @@ try {
   const open = async p => { await packet({type:'command',name:'openPath',path:p}); await waitFor(async () => (await host())?.path.toLowerCase()===p.toLowerCase() && (await state()).documentId===(await host()).documentId, 'Open '+p); };
   const activate = async id => { await packet({type:'command',name:'activateTab',path:id}); await waitFor(async () => (await state()).documentId===id,'Activate tab'); };
   const edit = async value => { if((await state()).kind==='markdown') await page.locator('#source-mode').click(); await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText(value); };
-  await open(md); const mdId=(await state()).documentId; await edit('\nunsaved markdown');
+  const payloadFile = path.join(project, 'payload.json');
+  const longLine = JSON.stringify({rows: Array(32000).fill({name:'choice', options:[1, 2, 3], selected:false})});
+  await writeFile(payloadFile, longLine);
+  await open(payloadFile); const payloadId = (await state()).documentId;
+  await open(py); const verifyId = (await state()).documentId;
+  assert.equal((await state()).language, 'python');
+  await activate(payloadId); assert.equal((await state()).text, longLine);
+  await activate(verifyId); assert.equal((await state()).language, 'python');
+  await packet({type:'command', name:'closeTab', path:verifyId});
+  await waitFor(async () => (await state()).documentId === payloadId, 'Close Python tab');
+  await open(md); const mdId=(await state()).documentId;
+  await packet({type:'command', name:'closeTab', path:payloadId});
+  await waitFor(async () => (await host()).tabs.length === 1 && (await state()).documentId === mdId, 'Continue opening and closing after long JSON');
+  tests.push('Switch from a large single-line JSON file to Python and resume both tabs');
+  const tabNames = ['SelectControl.tsx', 'SourcingPolicyGuidelineEditor.tsx', 'a.ts', 'SourcingTypeEditor.tsx', 'SpendAllocationEvidence.tsx', 'b.ts', 'c.ts'];
+  for (const name of tabNames) {
+    const file = path.join(project, name); await writeFile(file, 'export {}'); await open(file);
+  }
+  const rows = page.locator('.document-tab');
+  const tabBar = await page.locator('.document-tabs').boundingBox();
+  const sidebarBar = await page.locator('.sidebar-chooser').boundingBox();
+  assert(Math.abs(tabBar.height - 30) < 0.1);
+  assert(Math.abs(sidebarBar.height - tabBar.height) < 0.1 && Math.abs(sidebarBar.y - tabBar.y) < 0.1);
+  const widths = await rows.evaluateAll(items => items.map(item => item.getBoundingClientRect().width));
+  assert(widths.every(width => Math.abs(width - 164) < 0.1), `Tab widths: ${widths}`);
+  const filename = name => rows.locator('.tab-name').filter({hasText:name});
+  assert(await filename(tabNames[0]).evaluate(el => el.scrollWidth <= el.clientWidth));
+  const long = filename(tabNames[1]);
+  assert(await long.evaluate(el => el.scrollWidth > el.clientWidth));
+  const tooltip = await long.evaluate(el => el.closest('[title]').title);
+  assert.equal(tooltip, tabNames[1] + '\n' + path.join(project, tabNames[1]));
+  const strip = page.locator('.tab-items');
+  assert(await strip.evaluate(el => el.scrollWidth > el.clientWidth));
+  const activeId = (await state()).documentId;
+  const prev = page.getByRole('button', {name:'이전 탭'});
+  await prev.click(); await prev.click();
+  assert.equal((await state()).documentId, activeId);
+  assert.equal(await page.locator(':focus .tab-name').textContent(), 'SpendAllocationEvidence.tsx');
+  await page.keyboard.press('Enter');
+  await waitFor(async () => (await host()).name === 'SpendAllocationEvidence.tsx', 'Activate focused tab');
+  await page.getByRole('button', {name:'열린 파일 목록'}).click();
+  await page.getByRole('menuitemradio', {name:'README.md'}).click();
+  await waitFor(async () => (await state()).documentId === mdId, 'Choose file from menu');
+  await strip.evaluate(el => { el.scrollLeft = 0; });
+  const box = await rows.nth(1).locator('.tab-close').boundingBox();
+  for (const name of tabNames) {
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await waitFor(async () => !(await host()).tabs.some(tab => tab.name === name), 'Close at the same position: ' + name);
+  }
+  await waitFor(async () => (await state()).documentId === mdId, 'Return to Markdown');
+  tests.push('Equal-width tabs, full filename and path tooltip, overflow and consecutive closes at a fixed pointer position');
+  const svgFile = path.join(project, '그림 #1.SVG');
+  const svgText = '<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="900"><rect width="100%" height="100%" fill="teal"/></svg>';
+  const raster = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 24; canvas.height = 12;
+    return ['image/png', 'image/jpeg'].map(type => canvas.toDataURL(type).split(',')[1]);
+  });
+  const images = [
+    [svgFile, Buffer.from(svgText), 2000],
+    [path.join(project, 'snapshot.PNG'), Buffer.from(raster[0], 'base64'), 24],
+    ...['jpg','jpeg','jfif'].map(ext => [path.join(project, 'photo.' + ext), Buffer.from(raster[1], 'base64'), 24]),
+    [path.join(project, 'animated.gif'), Buffer.from('R0lGODlhEAAQAIEAAP8AAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQAIwAAACwAAAAAEAAQAAAIHQABCBxIsKDBgwgTKlzIsKHDhxAjSpxIsaLFgQEBACH5BAEjAAEALAAAAAAQABAAgQAA/wAAAAAAAAAAAAgdAAEIHEiwoMGDCBMqXMiwocOHECNKnEixosWBAQEAOw==','base64'), 16],
+    [path.join(project, 'animated.webp'), Buffer.from('UklGRoQAAABXRUJQVlA4WAoAAAACAAAADwAADwAAQU5JTQYAAAAAAAAAAABBTk1GKAAAAAAAAAAAAA8AAA8AAF4BAAJWUDhMDwAAAC8PwAMABxD9j/4HIqL/AQBBTk1GKAAAAAAAAAAAAA8AAA8AAF4BAABWUDhMDwAAAC8PwAMABxDR//4HIqL/AQA=','base64'), 16],
+  ];
+  for (const [file, bytes, width] of images) {
+    await writeFile(file, bytes);
+    if (file === svgFile) {
+      await packet({type:'command', name:'openFolderPath', path:project});
+      await page.locator('.folder-actions button[data-folder=refresh]').click();
+      await page.locator('.folder-tree').getByText(path.basename(file), {exact:true}).dblclick();
+    } else await open(file);
+    const img = page.locator('#image-preview img');
+    await waitFor(async () => (await state()).kind === 'image' && await img.evaluate(el => el.naturalWidth) === width, 'Decode ' + path.extname(file));
+    assert(await page.locator('[data-host-command=save]').isDisabled());
+    assert(!(await page.locator('#editor-scroll').isVisible()));
+    if (file === svgFile) {
+      const fittedWidth = (await img.boundingBox()).width;
+      assert(fittedWidth < width);
+      await page.locator('#image-zoom-in').click();
+      assert((await img.boundingBox()).width > fittedWidth);
+      await page.locator('#image-original').click();
+      assert.equal(Math.round((await img.boundingBox()).width), width);
+      await page.locator('#image-zoom-in').click();
+      assert.equal(Math.round((await img.boundingBox()).width), width * 1.25);
+      const zoom = page.getByRole('textbox', {name:'확대율'});
+      await zoom.fill('137.5%'); await zoom.press('Enter');
+      assert.equal(Math.round((await img.boundingBox()).width), width * 1.375);
+      await zoom.fill('401'); await zoom.press('Enter');
+      assert(await zoom.evaluate(input => !input.validity.valid));
+      await zoom.press('Escape'); assert.equal(await zoom.inputValue(), '137.5%');
+      await zoom.fill('112.5'); await zoom.press('Tab');
+      assert.equal(Math.round((await img.boundingBox()).width), width * 1.125);
+      await activate(mdId); assert.equal((await state()).kind, 'markdown');
+      await open(file);
+      await waitFor(async () => (await zoom.inputValue()) === '112.5%', 'Restore custom image zoom');
+      await img.hover();
+      await page.keyboard.down('Control'); await page.mouse.wheel(0, 100); await page.keyboard.up('Control');
+      await waitFor(async () => (await zoom.inputValue()) === '100%', 'Ctrl+wheel zoom out');
+      await page.locator('#image-zoom-out').click();
+      assert.equal(Math.round((await img.boundingBox()).width), width * 0.75);
+      await page.locator('#image-fit').click();
+      assert(Math.abs((await img.boundingBox()).width - fittedWidth) < 1);
+    }
+    if (width === 16) {
+      const frame = await img.screenshot({animations:'allow'});
+      await waitFor(async () => !frame.equals(await img.screenshot({animations:'allow'})), 'Animation advances: ' + path.extname(file));
+    }
+    await packet({type:'command',name:'save'});
+    assert.deepEqual(await readFile(file), bytes);
+    await packet({type:'command',name:'closeTab'});
+    await waitFor(async () => (await state()).documentId === mdId, 'Close image tab');
+  }
+  tests.push('Read-only PNG, JPEG aliases, animated GIF/WebP and SVG open from the tree and switch between fit and 100%');
+  await edit('\nunsaved markdown');
   await open(py); const pyId=(await state()).documentId;
   assert.equal((await state()).kind,'text'); assert.equal((await state()).language,'python'); await edit('!');
   await open(json); const jsonId=(await state()).documentId; assert.equal((await host()).tabs.length,3); assert.equal((await state()).language,'json');
@@ -65,9 +178,34 @@ try {
   tests.push('Dirty close cancellation and save all');
   await activate(pyId); await edit('\nlocal edit'); await activate(jsonId); await writeFile(py,'external change\n');
   await waitFor(async()=>(await host()).tabs.find(t=>t.id===pyId).external,'Inactive external change',10000);
-  await activate(pyId); await packet({type:'command',name:'save'}); await page.getByRole('button',{name:'취소',exact:true}).click(); assert((await state()).dirty); assert.equal(await readFile(py,'utf8'),'external change\n');
+  const notice = page.locator('.external-notice');
+  assert.equal(await notice.isVisible(), false);
+  await activate(pyId);
+  await notice.getByRole('button', {name:'계속 편집'}).click();
+  await activate(jsonId); await activate(pyId);
+  assert.equal(await notice.isVisible(), false);
+  await packet({type:'command',name:'save'}); await page.getByRole('button',{name:'취소',exact:true}).click(); assert((await state()).dirty); assert.equal(await readFile(py,'utf8'),'external change\n');
   await packet({type:'command',name:'save'}); await page.getByRole('button',{name:'덮어쓰기',exact:true}).click(); await waitFor(async()=>!(await state()).dirty,'Overwrite');
   tests.push('Inactive tab external-change detection and conflict cancellation/explicit overwrite');
+  await writeFile(py, 'first disk version\n');
+  const reload = notice.getByRole('button', {name:'다시 읽기', exact:true});
+  await reload.waitFor();
+  const version = (await host()).tabs.find(t => t.id === pyId).externalVersion;
+  await writeFile(py, 'latest disk version\n');
+  await waitFor(async () => (await host()).tabs.find(t => t.id === pyId).externalVersion !== version, 'Repeated external change');
+  assert.equal(await notice.count(), 1);
+  await reload.click();
+  await waitFor(async () => !(await notice.isVisible()) && (await state()).text === 'latest disk version\n', 'Clean reload');
+  await edit('local change');
+  await writeFile(py, 'replacement\n');
+  await notice.getByRole('button', {name:'내 변경을 버리고 다시 읽기'}).click();
+  await waitFor(async () => !(await notice.isVisible()) && !(await state()).dirty && (await state()).text === 'replacement\n', 'Discard edits and reload');
+  await unlink(py);
+  await notice.getByRole('button', {name:'다른 이름으로 저장'}).waitFor();
+  assert.equal((await state()).text, 'replacement\n');
+  await writeFile(py, 'replacement\n');
+  await notice.waitFor({state:'hidden'});
+  tests.push('Active-tab reload, repeated writes, explicit discard and delete/restore at the original contents');
   const binary=path.join(project,'binary.dat'); await writeFile(binary,Buffer.from([0,1,2,3]));
   await packet({type:'command',name:'openPath',path:binary}); await page.getByRole('button',{name:'확인',exact:true}).click(); assert.equal((await state()).documentId,pyId); assert.equal((await host()).tabs.length,3);
   tests.push('Binary open failure preserves active tab');

@@ -31,6 +31,73 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => !!(window as any).folio);
 });
 
+test('folder chevrons rotate on click and keyboard navigation while sibling labels stay aligned', async ({ page }) => {
+  await page.evaluate(() => {
+    const host = (window as any).testHost;
+    const root = 'C:/project';
+    host.emit({type:'folderRoot', root});
+    const request = host.packets.findLast((packet: any) => packet.type === 'listFolder');
+    host.emit({...request, type:'folderEntries', root, entries:[
+      {name:'src', path:root + '/src', directory:true, link:false},
+      {name:'index.html', path:root + '/index.html', directory:false, link:false},
+    ]});
+  });
+  const tree = page.locator('.folder-tree');
+  const folder = tree.getByRole('treeitem', {name:'src', exact:true});
+  const file = tree.getByRole('treeitem', {name:'index.html', exact:true});
+  const arrow = folder.locator('.file-caret svg');
+  await expect(arrow).toHaveCSS('width', '12px');
+  await expect(arrow).toHaveCSS('transform', 'none');
+  await expect(file.locator('.file-caret')).toBeEmpty();
+  expect((await file.getByText('index.html').boundingBox())?.x).toBe((await folder.getByText('src').boundingBox())?.x);
+  await folder.locator('.file-caret').click();
+  await expect(folder).toBeFocused();
+  await expect(arrow).toHaveCSS('transform', 'matrix(0, 1, -1, 0, 0, 0)');
+  await page.keyboard.press('ArrowLeft');
+  await expect(folder).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('ArrowRight');
+  await expect(folder).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('open file menu keeps every file accessible in at most twenty rows', async ({ page }) => {
+  await page.evaluate(() => {
+    const host = (window as any).testHost;
+    const tabs = Array.from({length:25}, (_, i) => {
+      const name = i < 2 ? 'index.ts' : `notes-${i}.md`;
+      return {id:String(i), name, path:`C:/folder-${i}/${name}`, kind:'text', dirty:false};
+    });
+    host.emit({type:'hostState', name:tabs[24].name, path:tabs[24].path, documentId:'24', tabs, preferences:host.preferences});
+  });
+  const toggle = page.getByRole('button', {name:'열린 파일 목록'});
+  await toggle.click();
+  const menu = page.getByRole('menu', {name:'열린 파일 목록'});
+  const items = menu.getByRole('menuitemradio');
+  await expect(items).toHaveCount(25);
+  await expect(items.last()).toBeFocused();
+  await expect(items.last()).toHaveAttribute('aria-checked','true');
+  await expect(items.first()).toHaveText('index.ts — folder-0');
+  await expect(items.first()).toHaveAttribute('title','C:/folder-0/index.ts');
+  await expect(items.first()).toHaveCSS('font-size','12px');
+  expect(await menu.evaluate(el => el.clientHeight)).toBe(20 * 28);
+  await page.setViewportSize({width:900,height:440});
+  await expect.poll(() => menu.evaluate(el => el.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
+  await page.keyboard.press('Home'); await expect(items.first()).toBeFocused();
+  await page.keyboard.press('Escape'); await expect(menu).toBeHidden(); await expect(toggle).toBeFocused();
+  await page.getByRole('button', {name:'다음 탭'}).click();
+  await expect(page.locator('.tab-select').first()).toBeFocused();
+  await expect(page.locator('.tab-select').last()).toHaveAttribute('aria-selected', 'true');
+  const strip = page.locator('.tab-items');
+  const focusedTab = page.locator('.document-tab').first();
+  await expect(strip).toHaveCSS('scrollbar-width', 'none');
+  await expect(strip).toHaveCSS('overflow-y', 'hidden');
+  await expect(focusedTab).toBeInViewport({ratio:1});
+  await expect(focusedTab).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(focusedTab.locator('.tab-select')).toHaveCSS('outline-style', 'none');
+  await expect(page.locator('.document-tab.active')).toHaveCSS('border-top-color', 'rgb(43, 140, 105)');
+  await page.keyboard.press('End');
+  await expect(page.locator('.document-tab').last()).toBeInViewport({ratio:1});
+});
+
 test('outline clicks focus and reveal headings in both modes, including repeated selection', async ({ page }) => {
   const text = '# 시작\n\n' + '긴 본문입니다.\n\n'.repeat(70) + '## 목적지\n\n끝 본문\n';
   await load(page, text);

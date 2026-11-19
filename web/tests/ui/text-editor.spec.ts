@@ -37,6 +37,31 @@ for (const [name, language, text] of [['Main.java','java','public class Main { i
   });
 }
 
+for (const [name, language, text, token] of [
+  ['types.d.TS', 'javascript', 'export type Identifier = string', 'Identifier'],
+  ['View.tsx', 'javascript', 'export const View = () => <section>Hi</section>', 'section'],
+  ['app.JS', 'javascript', 'export const enabled = true', 'const'],
+  ['index.HTML', 'html', '<main title="Welcome">Hello</main>', 'main'],
+  ['settings.YAML', 'yaml', 'editor:\n  enabled: true\n  indent: 2\n', 'enabled'],
+]) {
+  test(`${name} opens with ${language} highlighting`, async ({ page }) => {
+    await load(page, { documentId: name, name, text });
+    await expect(page.getByRole('combobox', { name: '구문 강조 언어' })).toHaveValue(language);
+    const highlightedToken = page.locator('.cm-line span').filter({ hasText: new RegExp(`^${token}$`) });
+    await expect(highlightedToken.first()).toBeVisible();
+    expect((await snapshot(page)).text).toBe(text);
+  });
+}
+
+test('restoring a TS file refreshes automatic highlighting and preserves a manual choice', async ({ page }) => {
+  const file = { name: 'value.ts', text: 'const value = 1', language: 'plain' };
+  const language = page.getByRole('combobox', { name: '구문 강조 언어' });
+  await load(page, { ...file, documentId: 'auto', languageOverride: false });
+  await expect(language).toHaveValue('javascript');
+  await load(page, { ...file, documentId: 'manual', languageOverride: true });
+  await expect(language).toHaveValue('plain');
+});
+
 test('switching from a long Text buffer retains its selection and scroll position', async ({page}) => {
   const text = Array.from({length:1000},(_,i)=>`line ${i+1}`).join('\n');
   await load(page,{documentId:'long',name:'long.txt',text});
@@ -47,4 +72,40 @@ test('switching from a long Text buffer retains its selection and scroll positio
   await load(page,{documentId:'long',name:'long.txt',text:'',resume:true});
   await expect.poll(async()=>Math.abs(await page.locator('.cm-scroller').evaluate(e=>e.scrollTop)-top)).toBeLessThan(8);
   await page.keyboard.insertText('replaced'); expect((await snapshot(page)).text).toBe(text.slice(0,text.lastIndexOf('\n')+1)+'replaced');
+});
+
+test('reload preserves the source caret, scroll and language choice and rejects intervening edits', async ({page}) => {
+  const text = Array.from({length: 600}, (_, i) => `line ${i}`).join('\n');
+  await load(page, {documentId:'reload', name:'notes.ts', text});
+  await page.getByRole('combobox', {name:'구문 강조 언어'}).selectOption('plain');
+  await page.locator('.cm-content').focus();
+  await page.keyboard.press('Control+End');
+  await expect.poll(() => page.locator('.cm-scroller').evaluate(e => e.scrollTop)).toBeGreaterThan(1000);
+  const top = await page.locator('.cm-scroller').evaluate(e => e.scrollTop);
+  const request = {type:'reloadFile', documentId:'reload', expectedRevision:(await snapshot(page)).revision, text:text + '\nnew line', newline:'\n', bom:false};
+  await page.evaluate(p => window.folio.receive(p), request);
+  await expect.poll(async () => Math.abs(await page.locator('.cm-scroller').evaluate(e => e.scrollTop) - top)).toBeLessThan(8);
+  await page.keyboard.insertText('!');
+  const edited = await snapshot(page);
+  expect(edited).toMatchObject({text:text + '!\nnew line', language:'plain', dirty:true});
+  await page.evaluate(p => window.folio.receive(p), request);
+  expect(await snapshot(page)).toEqual(edited);
+});
+
+test('reloading rendered Markdown keeps the caret in the paragraph and resets undo', async ({page}) => {
+  const text = '# Notes\n\nCurrent paragraph\n\nOld ending';
+  await load(page, {documentId:'rendered-reload', name:'notes.md', text});
+  const paragraph = page.locator('.ProseMirror p').first();
+  await paragraph.click(); await page.keyboard.press('End'); await page.keyboard.insertText('s');
+  await expect.poll(async () => (await snapshot(page)).text).toContain('Current paragraphs');
+  const expectedRevision = (await snapshot(page)).revision;
+  await page.evaluate(p => window.folio.receive(p), {
+    type:'reloadFile', documentId:'rendered-reload', expectedRevision, text:text.replace('paragraph', 'paragraphs').replace('Old ending', 'New ending'), newline:'\n', bom:false,
+  });
+  await expect(page.locator('.ProseMirror p').last()).toHaveText('New ending');
+  expect((await snapshot(page)).dirty).toBe(false);
+  await page.keyboard.press('Control+z');
+  await page.keyboard.insertText('!');
+  await expect(paragraph).toHaveText('Current paragraphs!');
+  await expect(page.locator('.ProseMirror p').last()).toHaveText('New ending');
 });

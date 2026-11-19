@@ -12,8 +12,9 @@
             auto &d = documents.at(id);
             result.push_back(Json::object({{"id", id}, {"path", utf8(d.path.wstring())},
                 {"name", d.path.empty() ? tr(d.textMode ? "제목 없음.txt" : "제목 없음.md") : utf8(d.path.filename().wstring())},
-                {"dirty", d.current["dirty"]}, {"kind", d.textMode ? "text" : "markdown"},
-                {"external", d.fileHash != d.lastExternal}}));
+                {"dirty", d.current["dirty"]}, {"kind", d.kind()},
+                {"external", d.fileHash != d.lastExternal},
+                {"externalVersion", d.fileHash != d.lastExternal ? (d.lastExternal.empty() ? "deleted" : d.lastExternal) : ""}}));
         }
         return result;
     }
@@ -21,7 +22,8 @@
         loaded = std::move(next); loadDeadline = GetTickCount64() + 15000;
         Json message = current;
         message["type"] = "load"; message["documentId"] = documentId; message["name"] = documentName();
-        message["kind"] = textMode ? "text" : "markdown"; message["session"] = true; message["resume"] = resume;
+        message["kind"] = kind(); message["session"] = true; message["resume"] = resume;
+        if (preview) message["previewUrl"] = previewUrl();
         message["bom"] = bom; message["newline"] = newline;
         post(message); status();
     }

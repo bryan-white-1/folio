@@ -63,6 +63,7 @@ struct App : DocumentState {
                            {"buttons", buttons}}));
     }
     void snapshot(std::function<void(Json)> done) {
+        if (preview) { done(current); return; }
         auto id = guid();
         snapshots.emplace(id, Pending{GetTickCount64() + 15000, std::move(done)});
         post(Json::object({{"type", "snapshot"}, {"requestId", id}, {"documentId", documentId}}));
@@ -79,7 +80,7 @@ struct App : DocumentState {
                            {"name", name},
                            {"dirty", current["dirty"]},
                            {"headings", headings},
-                           {"preferences", prefs}, {"documentId", documentId}, {"kind", textMode ? "text" : "markdown"}, {"tabs", tabs()}, {"root", utf8(workspaceRoot.wstring())}}));
+                           {"preferences", prefs}, {"documentId", documentId}, {"kind", kind()}, {"tabs", tabs()}, {"root", utf8(workspaceRoot.wstring())}}));
     }
     void configuration() {
         post(Json::object({{"type", "theme"}, {"value", prefs["Theme"]}}));
@@ -172,12 +173,19 @@ struct App : DocumentState {
         for (auto &[id, d] : documents) if (!d.path.empty() && same(d.path, target)) {
             activate(id); return;
         }
-        auto f = openDocument(target); // Read first: failures never replace an open buffer.
-        park(); static_cast<DocumentState &>(*this) = DocumentState{};
-        path = f.path; fileHash = f.fingerprint; lastExternal = fileHash;
-        newline = f.newline; bom = f.bom; original = f.text; textMode = !markdownPath(path);
+        DocumentState next;
+        next.path = target;
+        if (!previewMime(target).empty()) {
+            next.readPreview(target);
+        } else {
+            auto f = openDocument(target);
+            next.fileHash = next.lastExternal = f.fingerprint;
+            next.newline = f.newline; next.bom = f.bom; next.original = std::move(f.text); next.textMode = !markdownPath(target);
+        }
+        remember(prefs, target);
+        park(); static_cast<DocumentState &>(*this) = std::move(next);
         if (workspaceRoot.empty()) workspaceRoot = path.parent_path();
-        remember(prefs, path); load(f.text, false); recovery();
+        load(original, false); recovery();
     }
     std::optional<fs::path> pick(bool save, bool image = false, const std::wstring &suggestedName = {}) {
         Com<IFileDialog> dialog;
@@ -191,10 +199,11 @@ struct App : DocumentState {
                     "열기 창 생성 실패");
         auto docLabel = wide(tr("텍스트 파일")), allLabel = wide(tr("모든 파일")), imageLabel = wide(tr("이미지"));
         COMDLG_FILTERSPEC docs[] = {{docLabel.c_str(), L"*.*"}, {allLabel.c_str(), L"*.*"}};
+        COMDLG_FILTERSPEC openFiles[] = {{allLabel.c_str(), L"*.*"}, {imageLabel.c_str(), L"*.png;*.jpg;*.jpeg;*.jfif;*.gif;*.webp;*.svg"}};
         COMDLG_FILTERSPEC images[] = {{imageLabel.c_str(), L"*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp"}};
         dialog->SetTitle(wide(tr(save ? "다른 이름으로 저장" : image ? "이미지 삽입" : "열기")).c_str());
         dialog->SetOkButtonLabel(wide(tr(save ? "저장" : "열기")).c_str());
-        dialog->SetFileTypes(image ? 1 : 2, image ? images : docs);
+        dialog->SetFileTypes(image ? 1 : 2, image ? images : save ? docs : openFiles);
         DWORD options;
         dialog->GetOptions(&options);
         dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR |
@@ -220,6 +229,7 @@ struct App : DocumentState {
         return full(p.p);
     }
     void save(bool saveAs, std::function<void(bool)> done) {
+        if (preview) { done(false); return; }
         snapshot([this, saveAs, done](Json s) {
             safe([&] {
                 auto chosen = (saveAs || path.empty()) ? pick(true) : std::optional<fs::path>(path);
@@ -320,6 +330,18 @@ struct App : DocumentState {
                 });
         });
     }
+    void reloadFromDisk(Json revision) {
+        auto f = openDocument(path);
+        auto id = guid();
+        post(Json::object({{"type", "reloadFile"}, {"documentId", documentId}, {"requestId", id},
+                           {"expectedRevision", revision}, {"text", f.text}, {"bom", f.bom}, {"newline", f.newline}}));
+        snapshots.emplace(id, Pending{GetTickCount64() + 15000, [this, f = std::move(f)](Json result) {
+            busy = false;
+            if (!result["applied"].boolean()) return;
+            original = f.text; fileHash = lastExternal = f.fingerprint; newline = f.newline; bom = f.bom;
+            status(); recovery();
+        }});
+    }
     bool clipboard(const std::wstring &text, const std::string &html = {}) {
         bool opened = false;
         for (int i = 0; i < 6; i++) {
@@ -406,6 +428,7 @@ struct App : DocumentState {
         busy = false;
     }
     void execute(std::string name, std::string arg = {}) {
+        if (preview && (name == "image" || name == "find" || name == "undo" || name == "redo" || name == "toggleMode")) return;
         if (!ready || busy) {
             if (name == "image" && !arg.empty())
                 post(Json::object({{"type", "insertImages"},
@@ -444,12 +467,17 @@ struct App : DocumentState {
             } else if (name == "saveAll" || name == "close") {
                 snapshot([this, name](Json) { park(); processDocuments(tabOrder, 0, name == "close", documentId); });
             } else if (name == "reload") {
-                canLeave([this] { safe([&] {
-                    if (path.empty()) { busy = false; return; }
-                    auto f = openDocument(path); original = f.text; fileHash = lastExternal = f.fingerprint; newline = f.newline; bom = f.bom;
-                    current = Json::object({{"text", f.text}, {"revision", 0}, {"dirty", false}, {"documentId", documentId}});
-                    displayDocument(false); recovery();
-                }); });
+                if (path.empty()) { busy = false; return; }
+                if (preview) { readPreview(path); displayDocument(true); return; }
+                snapshot([this, arg](Json s) {
+                    auto revision = s["revision"];
+                    if (s["dirty"].boolean() && arg != "discard") {
+                        ask("디스크에서 다시 읽기", tr("다시 읽으면 저장하지 않은 편집 내용이 사라집니다."),
+                            {"계속 편집", "내 변경을 버리고 다시 읽기"}, [this, revision](int choice) {
+                                if (choice == 1) reloadFromDisk(revision); else busy = false;
+                            });
+                    } else reloadFromDisk(revision);
+                });
             } else if (name == "openFolder" || name == "openFolderPath") {
                 auto chosen = name == "openFolderPath" ? std::optional<fs::path>(full(wide(arg))) : pickFolder();
                 if (chosen && fs::is_directory(*chosen)) { workspaceRoot = *chosen; post(Json::object({{"type", "folderRoot"}, {"root", utf8(workspaceRoot.wstring())}})); status(); }
@@ -504,7 +532,14 @@ struct App : DocumentState {
         }
         if (!m["documentId"].null() && m["documentId"].str() != documentId)
             return;
-        if (type == "changed" || type == "snapshot") {
+        if (preview && (type == "changed" || type == "snapshot" || type == "importImages")) return;
+        if (type == "reloadResult") {
+            auto it = snapshots.find(m["requestId"].str());
+            if (it == snapshots.end()) return;
+            auto done = std::move(it->second.done);
+            snapshots.erase(it);
+            done(m);
+        } else if (type == "changed" || type == "snapshot") {
             if (m["revision"].num() >= current["revision"].num())
                 current = m;
             if (type == "changed") {
@@ -542,7 +577,7 @@ struct App : DocumentState {
                 images(m, false);
             }
         } else if (type == "exportMarkdown") {
-            if (busy || textMode || m["text"].str().size() > 10 * 1024 * 1024) return;
+            if (busy || preview || textMode || m["text"].str().size() > 10 * 1024 * 1024) return;
             busy = true;
             safe([&] {
                 auto chosen = pick(true, false, (path.empty() ? std::wstring(L"document") : path.stem().wstring()) + L".plain.md");
@@ -586,17 +621,17 @@ struct App : DocumentState {
         try {
             std::string prefix = "https://document.local/";
             if (url.starts_with(prefix)) {
-                auto target = contained(imageDocument().parent_path(), url.substr(prefix.size()));
-                auto ext = upper(target.extension().wstring());
-                std::wstring mime = ext == L".PNG"                      ? L"image/png"
-                                    : ext == L".JPG" || ext == L".JPEG" ? L"image/jpeg"
-                                    : ext == L".GIF"                    ? L"image/gif"
-                                    : ext == L".WEBP"                   ? L"image/webp"
-                                    : ext == L".BMP"                    ? L"image/bmp"
-                                    : ext == L".SVG"                    ? L"image/svg+xml"
-                                                                        : L"";
+                std::wstring mime;
+                std::string asset;
+                if (preview) {
+                    if (url == previewUrl()) mime = previewMime(path);
+                } else {
+                    auto target = contained(imageDocument().parent_path(), url.substr(prefix.size()));
+                    mime = upper(target.extension().wstring()) == L".BMP" ? L"image/bmp" : previewMime(target);
+                    if (!mime.empty()) asset = readBytes(target, 20 * 1024 * 1024);
+                }
                 if (!mime.empty()) {
-                    auto data = readBytes(target, 20 * 1024 * 1024);
+                    const auto &data = preview ? *preview : asset;
                     Com<IStream> stream;
                     *stream.put() = SHCreateMemStream((BYTE *)data.data(), UINT(data.size()));
                     env->CreateWebResourceResponse(
@@ -729,7 +764,12 @@ struct App : DocumentState {
                                         &token);
                                     web->add_ProcessFailed(
                                         callback<ICoreWebView2ProcessFailedEventHandler>(
-                                            [this](ICoreWebView2 *, ICoreWebView2ProcessFailedEventArgs *) {
+                                            [this](ICoreWebView2 *, ICoreWebView2ProcessFailedEventArgs *args) {
+                                                COREWEBVIEW2_PROCESS_FAILED_KIND kind;
+                                                if (FAILED(args->get_ProcessFailedKind(&kind)) ||
+                                                    (kind != COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED &&
+                                                     kind != COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED))
+                                                    return S_OK;
                                                 recovery();
                                                 ready = false;
                                                 defer([this] {
@@ -779,10 +819,10 @@ struct App : DocumentState {
             if (now - lastCheck >= 4000) {
                 lastCheck = now; park(); bool changed = false;
                 for (auto &[id, d] : documents) if (!d.path.empty()) {
-                    try { auto f = fingerprint(d.path); if (f != d.fileHash && f != d.lastExternal) { d.lastExternal = f; changed = true; } } catch (...) { }
+                    try { auto f = fingerprint(d.path); if (f != d.lastExternal) { d.lastExternal = f; changed = true; } } catch (...) { }
                 }
                 if (documents.contains(documentId)) lastExternal = documents.at(documentId).lastExternal;
-                if (changed) { toast("파일이 외부에서 변경되었습니다. 저장 시 충돌을 확인합니다."); status(); }
+                if (changed) status();
             }
         }
         if (startupComplete && !busy && !activations.empty()) {

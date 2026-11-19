@@ -1,3 +1,18 @@
+Updated: 2026-11-20 00:40 KST (UTC+09:00)
+
+# Folio 0.2.7 — Image preview and file navigation
+
+- Preview PNG, JPEG, GIF, WebP and SVG files in their own tabs. Fit an image to the window or enter a zoom percentage.
+- Reload externally modified files from the editor. Folio asks before discarding local edits.
+- Open JavaScript, TypeScript, TSX, YAML and HTML files with automatic syntax highlighting. Switching from large single-line documents preserves the editing session.
+- Move focus across fixed-width tabs with the arrow buttons and press Enter to switch. The open-file menu shows up to 20 rows and scrolls to every tab. Folder chevrons and compact editing toolbars make more room for the document.
+
+**Windows downloads** include the x64 online MSI, portable ZIP, SHA-256 checksums and MSI manifest. Save your work and close Folio before upgrading. The MSI upgrades previous MSI installations. If you installed an older EXE edition, uninstall it first. The online MSI downloads WebView2 when needed. This release is unsigned.
+
+[Changes since 0.2.6](https://github.com/bryan-white-1/folio/compare/v0.2.6...v0.2.7)
+
+---
+
 Updated: 2026-11-07 11:21 KST (UTC+09:00)
 
 # Folio 0.2.6 — Text colors and editing improvements
