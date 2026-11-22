@@ -35,7 +35,7 @@ async function cleanClose() { const exited = once(child, 'exit'); await packet({
 try {
   const project = path.join(profile, 'project'); await mkdir(path.join(project,'src'), {recursive:true}); await mkdir(path.join(project,'node_modules'), {recursive:true});
   const md = path.join(project, 'README.md'), py = path.join(project,'src','main.py'), json = path.join(project,'data.json');
-  await writeFile(md, '# Project\n\nProject notes\n'); await writeFile(py, '\ufeffdef greet():\r\n    return "hello"\n# end'); await writeFile(json, '{"count":1}\n');
+  await writeFile(md, '# Project\n\nProject notes\n\n| Source |\n| --- |\n| [greet](../project/src/main.py#L2) |\n'); await writeFile(py, '\ufeffdef greet():\r\n    return "hello"\n# end'); await writeFile(json, '{"count":1}\n');
   await launch();
   await page.evaluate(() => { window.chrome.webview.addEventListener('message', e => { if(e.data.type==='hostState') window.testHostState=e.data; }); });
   const host = () => page.evaluate(() => window.testHostState);
@@ -56,6 +56,16 @@ try {
   await packet({type:'command', name:'closeTab', path:payloadId});
   await waitFor(async () => (await host()).tabs.length === 1 && (await state()).documentId === mdId, 'Continue opening and closing after long JSON');
   tests.push('Switch from a large single-line JSON file to Python and resume both tabs');
+  for (let visit = 0; visit < 2; visit++) {
+    await page.getByRole('link', {name:'greet'}).click();
+    await waitFor(async () => (await host()).path === py && await page.evaluate(() =>
+      document.getSelection()?.anchorNode?.parentElement?.closest('.cm-line')?.textContent.includes('return')), 'Follow table link to line 2');
+    assert.equal((await host()).tabs.length, 2);
+    if (!visit) await activate(mdId);
+  }
+  await packet({type:'command',name:'closeTab',path:(await state()).documentId});
+  await waitFor(async () => (await state()).documentId === mdId, 'Return to linked document');
+  tests.push('Click a relative table link to open and reuse a source tab at the specified line');
   const tabNames = ['SelectControl.tsx', 'SourcingPolicyGuidelineEditor.tsx', 'a.ts', 'SourcingTypeEditor.tsx', 'SpendAllocationEvidence.tsx', 'b.ts', 'c.ts'];
   for (const name of tabNames) {
     const file = path.join(project, name); await writeFile(file, 'export {}'); await open(file);

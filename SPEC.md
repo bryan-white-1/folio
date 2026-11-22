@@ -1,8 +1,8 @@
-갱신: 2026-11-20 00:40 KST (UTC+09:00)
+갱신: 2026-11-22 19:28 KST (UTC+09:00)
 
-Folio 구현 SPEC · Native 0.2.7 이미지 보기·파일 탐색 / 0.1.11 WinUI Legacy 유지
+Folio 구현 SPEC · Native 0.2.8 Markdown 링크 탐색 / 0.1.11 WinUI Legacy 유지
 
-배포 범위: 이미지 보기·배율 입력, 외부 수정 파일 다시 읽기, 구문 강조 확대, 대용량 파일 전환, 탭·폴더 탐색·편집 도구 모음 개선. 0.2.7 MSI·포터블 ZIP에 포함. Legacy는 기존 단일 Markdown 문서 계약 유지.
+배포 범위: 본문·표의 로컬 파일·줄 번호·웹 링크 탐색, 이미지 보기·배율 입력, 외부 수정 파일 다시 읽기, 구문 강조 확대, 대용량 파일 전환, 탭·폴더 탐색·편집 도구 모음 개선. 0.2.8 MSI·포터블 ZIP에 포함. Legacy는 기존 단일 Markdown 문서 계약 유지.
 
 2-A 범위: C++/Win32 호스트·공유 WebView2, 목차/상단/설정/최근 문서 웹 셸 이관. 기존 Markdown 편집 엔진·라이브러리·포맷 유지. 상세 배포·호환·검증은 NATIVE_MIGRATION.md.
 
@@ -69,6 +69,7 @@ Folio 구현 SPEC · Native 0.2.7 이미지 보기·파일 탐색 / 0.1.11 WinUI
 | W12 | 메뉴·설정·도구 설명·오류/확인·시작/새 문서를 선택 언어로 표시. 앱 소유 정적 문자열만 번역하며 사용자 본문·파일명·경로·목차는 보존. Windows 공용 파일 대화상자의 시스템 항목은 OS 언어 유지. 외부 번역 라이브러리 없음 |
 | W13 | 더보기 → 기본 예제: 표·제목, 표·이미지 크기, Mermaid. examples/{ko,en}에서 실행 시 앱 언어로 선택; Native 탭 열기·Legacy 미저장 확인 경로 사용 |
 | W14 | Native·Legacy 웹 편집기는 최초 내비게이션만 허용. F5·Ctrl+R·강제 새로고침·동일 origin 재탐색 차단; 현재 파일·문서 ID·미저장 본문·dirty·Undo/Redo 유지. 저장·종료 snapshot 통신 유지. 디스크 파일 재읽기는 기존 외부 변경 감지 사용 |
+| W15 | Native 렌더링 본문·표 링크 한 번 클릭. 상대 파일은 현재 문서 폴더 기준으로 새 탭 열기·기존 탭 재사용. `#L숫자`는 원문 해당 줄로 이동. HTTP(S)는 기본 브라우저로 열기 |
 | T01 | `.md/.markdown` 대소문자 무관 Markdown, 그 외 허용 텍스트는 Text. Markdown 렌더링/원문 유지, Text는 CodeMirror만 사용·Markdown 파싱/직렬화/서식/이미지 가져오기 제외. 상단 + New ▾에서 Markdown(.md)·Text(.txt) 선택 생성; Ctrl+N은 Markdown 유지, 더보기 → 새 Text 유지. 메뉴는 한영 표시·방향키/Enter 선택·Esc/외부 클릭 닫기 지원 |
 | T02 | Python(.py/.pyw)·JSON(.json)·YAML(.yaml)·HTML(.html)·Java(.java)·JavaScript(.js/.ts/.tsx, 타입 표기·TSX의 JSX 지원)·C(.c/.h)·C++(.cpp/.cc/.cxx/.hpp/.hh/.hxx), 미지원 Plain Text. 언어 수동 선택·Markdown 강조 포함, 탭별 유지. 저장 확장자에 따라 유형/자동 언어 재판별, 수동 언어는 유지. 구문 강조만 제공·검증/실행 없음 |
 | T03 | Text 줄 번호·현재 줄·괄호 대응·찾기/바꾸기·줄 이동(Ctrl+G)·Undo/Redo·Tab/Shift+Tab·자동 줄바꿈(기본 OFF). 신규 들여쓰기 Spaces 2/4 또는 Tab 선택, 기존 공백 자동 변환 없음. 고정폭 글꼴·밝음/어두움 강조 색상. 상태 바 줄/열·UTF-8/BOM·LF/CRLF/CR/Mixed |

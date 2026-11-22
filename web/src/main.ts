@@ -578,6 +578,14 @@ async function receive(packet: HostPacket) {
       if (mode === 'source') source.focus();
       send({ type: 'loaded' }); break;
     }
+    case 'goToLine': {
+      if (packet.documentId !== documentId || kind === 'image' || !Number.isSafeInteger(packet.line) || packet.line < 1) break;
+      await switchMode('source');
+      const { from } = source.state.doc.line(Math.min(packet.line, source.state.doc.lines));
+      source.dispatch({ selection: { anchor: from }, effects: EditorView.scrollIntoView(from, { y: 'center' }) });
+      source.focus();
+      break;
+    }
     case 'reloadFile': {
       if (packet.documentId !== documentId) return;
       await settleComposition(); flushRendered();
@@ -726,8 +734,27 @@ $('link-dialog').addEventListener('close', () => {
   } else { editor.action(insert(`[${label}](<${url.replace(/[<>\n]/g, '')}>)`, true)); flushRendered(); }
 });
 document.addEventListener('click', e => {
-  const link = (e.target as HTMLElement).closest('a');
-  if (link) { e.preventDefault(); if (e.ctrlKey) send({ type: 'command', name: 'externalLink', url: link.href }); }
+  const link = e.target instanceof Element ? e.target.closest('#rendered-editor .ProseMirror a[href]') : null;
+  if (!link) return;
+  e.preventDefault();
+  const href = link.getAttribute('href')!.trim();
+  if (/^https?:\/\//i.test(href)) {
+    if (bridge) send({ type: 'command', name: 'externalLink', url: href });
+    else window.open(href, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  if (/^[a-z][a-z\d+.-]*:/i.test(href) && !/^[a-z]:[\\/]/i.test(href)) return;
+  const [encodedPath, fragment] = href.split('#', 2);
+  const line = /^L([1-9]\d*)(?:-L\d+)?$/i.exec(fragment ?? '');
+  if (!encodedPath) {
+    if (line) void receive({ type: 'goToLine', documentId, line: Number(line[1]) });
+    return;
+  }
+  try {
+    const path = decodeURIComponent(encodedPath);
+    if (!/[\x00-\x1f]/.test(path) && !/^[\\/]{2}/.test(path))
+      send({ type: 'command', name: 'openDocumentLink', path, line: line ? Number(line[1]) : 0 });
+  } catch { toast(t('파일 링크의 경로를 읽을 수 없습니다.')); }
 });
 document.addEventListener('keydown', e => {
   if (e.target === $('image-zoom') && (e.ctrlKey || e.metaKey) && ['z', 'y'].includes(e.key.toLowerCase())) return;

@@ -31,6 +31,15 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => !!(window as any).folio);
 });
 
+test('a single click on an external table link requests the default browser', async ({ page }) => {
+  const url = 'https://example.org/docs?q=table#links';
+  await load(page, '| Docs |\n| --- |\n| [Guide](' + url + ') |\n');
+  await page.getByRole('link', { name: 'Guide' }).click();
+  expect(await page.evaluate(() => (window as any).testHost.packets.at(-1))).toMatchObject({
+    type: 'command', name: 'externalLink', url,
+  });
+});
+
 test('folder chevrons rotate on click and keyboard navigation while sibling labels stay aligned', async ({ page }) => {
   await page.evaluate(() => {
     const host = (window as any).testHost;

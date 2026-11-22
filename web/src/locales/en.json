@@ -345,5 +345,7 @@
   "폴더를 먼저 열어주세요.": "Open a folder first.",
   "프로젝트 폴더 밖은 탐색할 수 없습니다.": "Cannot browse outside the project folder.",
   "항목 5,000개까지만 표시합니다.": "Showing the first 5,000 entries.",
-  "편집 가능한 UTF-8 텍스트 파일이 아닙니다": "This is not an editable UTF-8 text file"
+  "편집 가능한 UTF-8 텍스트 파일이 아닙니다": "This is not an editable UTF-8 text file",
+  "상대 링크를 열려면 먼저 문서를 저장하세요.": "Save this document before opening a relative link.",
+  "파일 링크의 경로를 읽을 수 없습니다.": "The file link contains an invalid path."
 }

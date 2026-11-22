@@ -1,3 +1,17 @@
+Updated: 2026-11-22 19:28 KST (UTC+09:00)
+
+# Folio 0.2.8 — Follow Markdown file links
+
+- Click a link in a rendered table or paragraph to open a local file in a new tab. Folio resolves relative paths from the Markdown document and reuses an existing tab for the same file.
+- Follow links such as `[Dashboard](../frontend/src/pages/Dashboard.tsx#L14)` to jump to the specified source line.
+- Click an HTTP or HTTPS link to open it in the default browser.
+
+**Windows downloads** include the x64 online MSI, portable ZIP, SHA-256 checksums and MSI manifest. Close Folio before upgrading. The online MSI downloads WebView2 if needed. Packages are unsigned.
+
+[Changes since 0.2.7](https://github.com/bryan-white-1/folio/compare/v0.2.7...v0.2.8)
+
+---
+
 Updated: 2026-11-20 00:40 KST (UTC+09:00)
 
 # Folio 0.2.7 — Image preview and file navigation

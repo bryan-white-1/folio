@@ -92,11 +92,11 @@ struct App : DocumentState {
         DwmSetWindowAttribute(hwnd, 20, &dark, sizeof(dark));
         status();
     }
-    void load(std::string text, bool dirty) {
+    void load(std::string text, bool dirty, std::function<void()> afterLoad = {}) {
         documentId = guid(); assetId = guid();
         current = Json::object({{"text", text}, {"revision", 0}, {"dirty", dirty}, {"documentId", documentId}});
         headings = Json::Array{};
-        displayDocument(false);
+        displayDocument(false, std::move(afterLoad));
     }
     void clearRecovery() { recovery(); }
     void recovery() {
@@ -168,10 +168,15 @@ struct App : DocumentState {
         else
             next();
     }
-    void open(const std::string &name) {
+    void open(const std::string &name, double line = 0) {
         auto target = full(wide(name));
+        std::function<void()> afterLoad;
+        if (line > 0) afterLoad = [this, line] {
+            if (!preview) post(Json::object({{"type", "goToLine"}, {"documentId", documentId}, {"line", line}}));
+            busy = false;
+        };
         for (auto &[id, d] : documents) if (!d.path.empty() && same(d.path, target)) {
-            activate(id); return;
+            activate(id, std::move(afterLoad)); return;
         }
         DocumentState next;
         next.path = target;
@@ -185,7 +190,7 @@ struct App : DocumentState {
         remember(prefs, target);
         park(); static_cast<DocumentState &>(*this) = std::move(next);
         if (workspaceRoot.empty()) workspaceRoot = path.parent_path();
-        load(original, false); recovery();
+        load(original, false, std::move(afterLoad)); recovery();
     }
     std::optional<fs::path> pick(bool save, bool image = false, const std::wstring &suggestedName = {}) {
         Com<IFileDialog> dialog;
@@ -427,7 +432,7 @@ struct App : DocumentState {
                            {"error", errorText}}));
         busy = false;
     }
-    void execute(std::string name, std::string arg = {}) {
+    void execute(std::string name, std::string arg = {}, double line = 0) {
         if (preview && (name == "image" || name == "find" || name == "undo" || name == "redo" || name == "toggleMode")) return;
         if (!ready || busy) {
             if (name == "image" && !arg.empty())
@@ -445,17 +450,25 @@ struct App : DocumentState {
         }
         busy = true;
         safe([&] {
+            if (name == "openDocumentLink") {
+                fs::path target(wide(arg));
+                if (target.is_relative() && path.empty()) {
+                    toast("상대 링크를 열려면 먼저 문서를 저장하세요."); busy = false; return;
+                }
+                arg = utf8((path.parent_path() / target).lexically_normal().wstring());
+                name = "openPath";
+            }
             if (name == "save" || name == "saveAs")
                 save(name == "saveAs", [this](bool) { busy = false; });
             else if (name == "new" || name == "newText" || name == "open" || name == "openPath") {
-                snapshot([this, name, arg](Json) { safe([&] {
+                snapshot([this, name, arg, line](Json) { safe([&] {
                     if (name == "new" || name == "newText") {
                         park(); static_cast<DocumentState &>(*this) = DocumentState{};
                         textMode = name == "newText"; load(textMode ? "" : tr("# 새 문서\n\n"), !textMode);
                         recovery();
                     } else {
                         auto chosen = name == "openPath" ? std::optional<fs::path>(wide(arg)) : pick(false);
-                        if (chosen) open(utf8(chosen->wstring())); else busy = false;
+                        if (chosen) open(utf8(chosen->wstring()), line); else busy = false;
                     }
                 }); });
             } else if (name == "activateTab") {
@@ -564,7 +577,7 @@ struct App : DocumentState {
                 if (lower.starts_with("http://") || lower.starts_with("https://"))
                     ShellExecuteW(hwnd, L"open", wide(url).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
             } else
-                execute(m["name"].str(), m["name"].str() == "image" ? m["requestId"].str() : m["path"].str());
+                execute(m["name"].str(), m["name"].str() == "image" ? m["requestId"].str() : m["path"].str(), m["line"].num());
         } else if (type == "importImages") {
             if (busy) {
                 post(Json::object({{"type", "insertImages"},
