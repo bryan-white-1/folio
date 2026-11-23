@@ -1,3 +1,17 @@
+Updated: 2026-11-23 13:40 KST (UTC+09:00)
+
+# Folio 0.2.9 — A brighter light theme
+
+- The sidebar and formatting toolbar share the editor’s white background. A pale green tint separates the top bar and inactive tabs.
+- Hovering over a file or outline entry gives it a pale mint background. The selected row uses a stronger mint fill and a green left edge. Pressed formatting tools use the same selection colors.
+- The active document tab keeps its white background and green top edge when focus moves into the editor.
+
+**Windows downloads** include the x64 online MSI, portable ZIP, SHA-256 checksums and MSI manifest. Close Folio before upgrading. The online MSI downloads WebView2 if needed. Packages are unsigned.
+
+[Changes since 0.2.8](https://github.com/bryan-white-1/folio/compare/v0.2.8...v0.2.9)
+
+---
+
 Updated: 2026-11-22 19:28 KST (UTC+09:00)
 
 # Folio 0.2.8 — Follow Markdown file links

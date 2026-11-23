@@ -196,3 +196,26 @@ test('font settings preview, cancel, save, reset and validate without editing th
   await page.getByRole('tab', { name: '렌더링', exact: true }).click();
   expect(await snapshot(page)).toEqual(before);
 });
+
+test('light workspace keeps selection distinct from hover after focus moves', async ({ page }) => {
+  await page.evaluate(() => {
+    const host = (window as any).testHost;
+    const root = 'C:/notes';
+    const tabs = ['one.md', 'two.md'].map(name => ({ id: name, name, path: root + '/' + name, kind: 'markdown' }));
+    host.emit({ type: 'hostState', ...tabs[0], documentId: tabs[0].id, tabs, root, preferences: host.preferences });
+    host.emit({ type: 'folderRoot', root });
+    const request = host.packets.filter((packet: any) => packet.type === 'listFolder').at(-1);
+    host.emit({ type: 'folderEntries', root, path: root, requestId: request.requestId, entries: tabs });
+  });
+  const rows = page.locator('.file-tree-row');
+  await rows.first().click();
+  await rows.last().hover();
+  await page.locator('.ProseMirror').focus();
+  await expect(page.locator('.host-sidebar')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(rows.first()).toHaveCSS('background-color', 'rgb(213, 243, 232)');
+  await expect(rows.last()).toHaveCSS('background-color', 'rgb(239, 248, 245)');
+  await expect(page.locator('.document-tab.active')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(page.locator('.mode-switch button[aria-selected=true]').last()).toHaveCSS('background-color', 'rgb(213, 243, 232)');
+  await page.evaluate(() => (window as any).folio.receive({ type: 'theme', value: 'dark' }));
+  await expect(rows.first()).toHaveCSS('background-color', 'rgb(51, 86, 74)');
+});
