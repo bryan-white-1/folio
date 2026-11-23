@@ -1,4 +1,5 @@
 import { language, t, tr, translateUi } from './i18n';
+import GithubSlugger from 'github-slugger';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx, remarkStringifyOptionsCtx, parserCtx, serializerCtx } from '@milkdown/kit/core';
 import { defaultHandlers } from 'mdast-util-to-markdown';
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInBulletListCommand, wrapInBlockquoteCommand, createCodeBlockCommand } from '@milkdown/kit/preset/commonmark';
@@ -255,6 +256,26 @@ function focusRenderedAt(from: number) {
     // move focus away, so restore it before dispatching the scroll request.
     view.focus();
     view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(Math.min(target, view.state.doc.content.size)))).scrollIntoView());
+  });
+}
+function jumpToFragment(fragment: string) {
+  let anchor: string;
+  try { anchor = decodeURIComponent(fragment); } catch { return; }
+  editor.action(ctx => {
+    const view = ctx.get(editorViewCtx);
+    const slugger = new GithubSlugger();
+    let target: number | undefined;
+    view.state.doc.descendants((node, pos) => {
+      if (target !== undefined) return false;
+      if (node.type.name === 'heading') {
+        if (slugger.slug(node.textContent) === anchor) target = pos + 1;
+        return false;
+      }
+      return !node.isTextblock;
+    });
+    if (target === undefined) return;
+    view.focus();
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, target)).scrollIntoView());
   });
 }
 async function jump(id: string) {
@@ -748,6 +769,7 @@ document.addEventListener('click', e => {
   const line = /^L([1-9]\d*)(?:-L\d+)?$/i.exec(fragment ?? '');
   if (!encodedPath) {
     if (line) void receive({ type: 'goToLine', documentId, line: Number(line[1]) });
+    else if (fragment) jumpToFragment(fragment);
     return;
   }
   try {

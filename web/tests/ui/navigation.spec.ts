@@ -40,6 +40,21 @@ test('a single click on an external table link requests the default browser', as
   });
 });
 
+test('body anchors reveal Korean headings and disambiguate duplicates in rendered mode', async ({ page }) => {
+  const links = '[처음](#설치-방법) · [다음](#' + encodeURIComponent('설치-방법-1') + ') · [원문](#L3)';
+  const filler = '본문 단락\n\n'.repeat(60);
+  await load(page, links + '\n\n## 설치 **방법**\n\n' + filler + '## 설치 방법\n');
+  const headings = page.locator('.ProseMirror h2');
+  for (const [index, label] of ['처음', '다음'].entries()) {
+    await page.getByRole('link', { name: label }).click();
+    await expect(headings.nth(index)).toBeInViewport();
+    expect(await headings.nth(index).evaluate(el => el.contains(getSelection()?.anchorNode ?? null))).toBe(true);
+  }
+  await page.getByRole('link', { name: '원문' }).click();
+  await expect(page.locator('.cm-content')).toBeFocused();
+  await expect(page.locator('.cm-activeLine')).toContainText('설치');
+});
+
 test('folder chevrons rotate on click and keyboard navigation while sibling labels stay aligned', async ({ page }) => {
   await page.evaluate(() => {
     const host = (window as any).testHost;

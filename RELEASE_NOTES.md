@@ -1,3 +1,17 @@
+Updated: 2026-11-23 21:03 KST (UTC+09:00)
+
+# Folio 0.2.10 — Follow links to headings
+
+- Click a Markdown link such as `[설치 방법](#설치-방법)` to jump to that heading in the rendered document.
+- Repeated headings use numbered anchors such as `#설치-방법-1`. Percent-encoded Korean anchors also work.
+- Line links such as `#L20` continue to open the requested line in source mode.
+
+**Windows downloads** include the x64 online MSI, portable ZIP, SHA-256 checksums and MSI manifest. Close Folio before upgrading. The online MSI downloads WebView2 if needed. Packages are unsigned.
+
+[Changes since 0.2.9](https://github.com/bryan-white-1/folio/compare/v0.2.9...v0.2.10)
+
+---
+
 Updated: 2026-11-23 13:40 KST (UTC+09:00)
 
 # Folio 0.2.9 — A brighter light theme
