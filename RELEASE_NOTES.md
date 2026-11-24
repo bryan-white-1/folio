@@ -1,3 +1,16 @@
+Updated: 2026-11-24 12:37 KST (UTC+09:00)
+
+# Folio 0.2.11 — Six workspace themes
+
+- Open **More (⋯) → Color theme** to choose Green, Explorer Light, Sky Blue, Paper, Lavender or Dark. Folio applies your choice immediately and restores it on restart.
+- Explorer Light pairs a blue-gray tab strip with blue selection highlights. Sky Blue uses a paler strip, Paper gives the editor a cream background, and Lavender uses violet accents.
+
+**Windows downloads** include the x64 online MSI, portable ZIP, SHA-256 checksums and MSI manifest. Close Folio before upgrading. The online MSI downloads WebView2 if needed. Packages are unsigned.
+
+[Changes since 0.2.10](https://github.com/bryan-white-1/folio/compare/v0.2.10...v0.2.11)
+
+---
+
 Updated: 2026-11-23 21:03 KST (UTC+09:00)
 
 # Folio 0.2.10 — Follow links to headings

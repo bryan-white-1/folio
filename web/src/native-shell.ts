@@ -14,7 +14,7 @@ export function installNativeShell(bridge: Bridge | undefined) {
   root.dataset.nativeShell = 'true';
   const app = document.getElementById('app')!;
   const shell = document.createElement('div'); shell.id = 'native-shell';
-  shell.innerHTML = uiHtml(`<header class="host-bar"><div class="host-brand"><span>f.</span><b>Folio</b></div><button id="host-path" aria-label="파일 전체 경로 보기 및 복사">시작하기.md</button><nav aria-label="문서 작업"><div class="host-new"><button id="host-new" aria-haspopup="menu" aria-controls="host-new-menu" aria-expanded="false"><span>＋ 새 문서</span> <span aria-hidden="true">▾</span></button><div id="host-new-menu" role="menu" aria-labelledby="host-new" hidden><button role="menuitem" data-host-command="new"><span>Markdown (.md)</span><small>Ctrl+N</small></button><button role="menuitem" data-host-command="newText">텍스트 (.txt)</button></div></div><button data-host-command="open">열기</button><button data-host-command="openFolder">폴더 열기</button><button data-host-command="recent">최근 문서</button><button data-host-command="save" class="primary">저장</button><button data-host-command="configuration" aria-label="설정 · Configuration">⚙</button><button id="host-more" aria-haspopup="menu" aria-controls="host-menu" aria-label="더 보기" aria-expanded="false">⋯</button></nav></header><div class="host-workspace"><aside class="host-sidebar" aria-label="문서 목차"><div class="host-outline-title"><b>문서 목차</b><span id="host-count">00</span></div><input id="host-filter" aria-label="목차에서 찾기" placeholder="목차에서 찾기"><div id="host-outline" role="tree" aria-label="제목 목록"></div><p id="host-empty">제목을 쓰면 목차가 나타납니다.</p><footer><span id="host-status">편집기 준비 중…</span><small>LOCAL FIRST · 나만의 문서 공간</small></footer></aside><div id="host-grip" role="separator" tabindex="0" aria-label="목차 너비" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="420" aria-valuenow="260"></div><section id="host-editor" aria-label="문서 편집 영역"></section></div><div id="host-menu" role="menu" hidden><button role="menuitem" data-host-command="newText">새 Text</button><button role="menuitem" data-host-command="saveAll">모두 저장</button><button role="menuitem" data-host-command="reload">디스크에서 다시 읽기</button><button role="menuitem" data-host-command="saveAs">다른 이름으로 저장 <small>Ctrl+Shift+S</small></button><button role="menuitem" data-host-command="image">이미지 삽입…</button><button role="menuitem" data-host-command="examples">기본 예제</button><hr><button role="menuitem" data-host-command="toggleMode">원문 / 렌더링 전환</button><button role="menuitem" data-host-command="sidebar">목차 표시 / 숨기기</button><button role="menuitem" data-host-command="theme">밝은 / 어두운 테마</button><button role="menuitem" data-host-command="configuration">설정 · Configuration</button></div>`);
+  shell.innerHTML = uiHtml(`<header class="host-bar"><div class="host-brand"><span>f.</span><b>Folio</b></div><button id="host-path" aria-label="파일 전체 경로 보기 및 복사">시작하기.md</button><nav aria-label="문서 작업"><div class="host-new"><button id="host-new" aria-haspopup="menu" aria-controls="host-new-menu" aria-expanded="false"><span>＋ 새 문서</span> <span aria-hidden="true">▾</span></button><div id="host-new-menu" role="menu" aria-labelledby="host-new" hidden><button role="menuitem" data-host-command="new"><span>Markdown (.md)</span><small>Ctrl+N</small></button><button role="menuitem" data-host-command="newText">텍스트 (.txt)</button></div></div><button data-host-command="open">열기</button><button data-host-command="openFolder">폴더 열기</button><button data-host-command="recent">최근 문서</button><button data-host-command="save" class="primary">저장</button><button data-host-command="configuration" aria-label="설정 · Configuration">⚙</button><button id="host-more" aria-haspopup="menu" aria-controls="host-menu" aria-label="더 보기" aria-expanded="false">⋯</button></nav></header><div class="host-workspace"><aside class="host-sidebar" aria-label="문서 목차"><div class="host-outline-title"><b>문서 목차</b><span id="host-count">00</span></div><input id="host-filter" aria-label="목차에서 찾기" placeholder="목차에서 찾기"><div id="host-outline" role="tree" aria-label="제목 목록"></div><p id="host-empty">제목을 쓰면 목차가 나타납니다.</p><footer><span id="host-status">편집기 준비 중…</span><small>LOCAL FIRST · 나만의 문서 공간</small></footer></aside><div id="host-grip" role="separator" tabindex="0" aria-label="목차 너비" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="420" aria-valuenow="260"></div><section id="host-editor" aria-label="문서 편집 영역"></section></div><div id="host-menu" role="menu" hidden><button role="menuitem" data-host-command="newText">새 Text</button><button role="menuitem" data-host-command="saveAll">모두 저장</button><button role="menuitem" data-host-command="reload">디스크에서 다시 읽기</button><button role="menuitem" data-host-command="saveAs">다른 이름으로 저장 <small>Ctrl+Shift+S</small></button><button role="menuitem" data-host-command="image">이미지 삽입…</button><button role="menuitem" data-host-command="examples">기본 예제</button><hr><button role="menuitem" data-host-command="toggleMode">원문 / 렌더링 전환</button><button role="menuitem" data-host-command="sidebar">목차 표시 / 숨기기</button><button role="menuitem" data-host-command="theme">색상 테마</button><button role="menuitem" data-host-command="configuration">설정 · Configuration</button></div>`);
   document.body.append(shell); shell.querySelector('#host-editor')!.append(app);
   const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   const send = (packet: Packet) => bridge.postMessage(packet);
@@ -81,6 +81,31 @@ export function installNativeShell(bridge: Bridge | undefined) {
     search.oninput = filter; search.onkeydown = e => { if (e.key === 'ArrowDown') { e.preventDefault(); (list.firstElementChild as HTMLElement)?.focus(); } if (e.key === 'Enter' && selected) open(); };
     filter(); d.dialog.showModal(); search.focus();
   }
+  function chooseTheme() {
+    if (modal) return;
+    const current = root.dataset.theme ?? 'light';
+    const d = createDialog(t('색상 테마'));
+    d.body.classList.add('theme-choices');
+    for (const [id, label] of [['light', 'Green'], ['explorer', 'Explorer Light'], ['sky', 'Sky Blue'],
+      ['paper', 'Paper'], ['lavender', 'Lavender'], ['dark', 'Dark']]) {
+      const choice = document.createElement('button');
+      choice.type = 'button';
+      choice.setAttribute('aria-pressed', String(id === current));
+      const sample = document.createElement('span');
+      sample.className = 'theme-sample';
+      sample.dataset.theme = id;
+      sample.setAttribute('aria-hidden', 'true');
+      choice.append(sample, label);
+      choice.onclick = () => {
+        send({ type: 'hostPreferences', preferences: { Theme: id }, save: true });
+        d.dialog.close();
+      };
+      d.body.append(choice);
+    }
+    d.button(t('취소'), () => d.dialog.close());
+    d.dialog.showModal();
+    d.body.querySelector<HTMLButtonElement>('[aria-pressed=true]')?.focus();
+  }
   function settings() {
     if (modal) return;
     const original = { BodyLineHeight: preferences.BodyLineHeight ?? 1.95, OutlineLineHeight: preferences.OutlineLineHeight ?? 2, DocumentAlignment: preferences.DocumentAlignment ?? 'center', FontFamily: preferences.FontFamily ?? defaultFontFamily, Language: preferences.Language ?? 'ko' };
@@ -139,7 +164,7 @@ export function installNativeShell(bridge: Bridge | undefined) {
     el('host-count').textContent = String(headings.length).padStart(2, '0'); el('host-empty').hidden = items.length > 0; el('host-empty').textContent = filter ? t('일치하는 제목이 없습니다.') : t('제목을 쓰면 목차가 나타납니다.\n# 제목으로 시작해보세요.');
     if (oldFocus) items.find(row => row.dataset.heading === oldFocus)?.focus();
   }
-  function action(name: string) { closeMenu(true); if (name === 'recent') recent(); else if (name === 'configuration') settings(); else if (name === 'examples') examples(); else if (name === 'sidebar') shell.classList.toggle('host-no-sidebar'); else command(name); }
+  function action(name: string) { closeMenu(true); if (name === 'recent') recent(); else if (name === 'theme') chooseTheme(); else if (name === 'configuration') settings(); else if (name === 'examples') examples(); else if (name === 'sidebar') shell.classList.toggle('host-no-sidebar'); else command(name); }
   shell.querySelectorAll<HTMLElement>('[data-host-command]').forEach(b => b.onclick = () => action(b.dataset.hostCommand!));
   el('host-path').onclick = showPath;
   el('host-path').oncontextmenu = e => { e.preventDefault(); if (path) command('copyPath'); };

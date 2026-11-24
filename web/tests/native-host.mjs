@@ -92,8 +92,33 @@ try {
   assert((await page.locator('.ProseMirror').evaluate(e => getComputedStyle(e).fontFamily)).includes('Batang')); tests.push('Korean font preview / cancel / disk persistence / restart restoration');
   await page.getByRole('tab', { name: '원문', exact: true }).click(); await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('\n\n```mermaid\ngraph TD\n A[시작] --> B[완료]\n```\n');
   await page.getByRole('tab', { name: '렌더링', exact: true }).click(); await page.locator('.mermaid-diagram').waitFor(); tests.push('Existing Mermaid retained in native WebView2');
+  for (const [name, id, tint] of [
+    ['Explorer Light', 'explorer', '#d1dbec'], ['Sky Blue', 'sky', '#f2f7fc'],
+    ['Paper', 'paper', '#f5f0e6'], ['Lavender', 'lavender', '#f7f5fb'],
+    ['Dark', 'dark', ''], ['Green', 'light', '#f4f8f7'],
+  ]) {
+    await page.locator('#host-more').click();
+    await page.getByRole('menuitem', { name: '색상 테마' }).click();
+    await page.getByRole('button', { name, exact: true }).click();
+    await page.waitForFunction(id => document.documentElement.dataset.theme === id, id);
+    assert.equal(JSON.parse(await readFile(path.join(profile, 'settings.json'), 'utf8')).Theme, id);
+    if (tint) assert.equal(await page.locator('.host-bar').evaluate(el =>
+      getComputedStyle(el).getPropertyValue('--workspace-tint').trim()), tint);
+  }
+  tests.push('Six workspace themes apply and persist through the native picker');
   await page.screenshot({ path: path.join(profile, 'native-light.png') }); await packet({ type: 'command', name: 'theme' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark'); await page.screenshot({ path: path.join(profile, 'native-dark.png') });
   await packet({ type: 'command', name: 'save' }); await waitFor(async () => !(await state()).dirty, 'Final save failed'); await cleanClose();
+  await launch();
+  await page.locator('#host-more').click();
+  await page.getByRole('menuitem', { name: '색상 테마' }).click();
+  await page.getByRole('button', { name: 'Paper', exact: true }).click();
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'paper');
+  await cleanClose();
+  await launch();
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'paper');
+  assert.equal(await page.locator('#editor-scroll').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 252, 245)');
+  tests.push('Paper editing surface restored after restarting Folio');
+  await cleanClose();
   const report = { timestamp: new Date().toISOString(), passed: true, tests, profile, payload, limitations: ['Physical Windows IME / Excel / native file-picker interactions require manual verification.', ...(process.argv.includes('--skip-system-clipboard') ? ['Windows system clipboard explicitly excluded for environments without clipboard access.'] : [])] };
   await writeFile(path.join(profile, 'native-host-results.json'), JSON.stringify(report, null, 2)); console.log(JSON.stringify(report, null, 2));
 } catch (error) {

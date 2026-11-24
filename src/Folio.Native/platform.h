@@ -252,7 +252,9 @@ inline Json defaults() {
                          {"FontFamily", "Malgun Gothic"}});
 }
 inline void normalizePreferences(Json &p) {
-    p["Theme"] = p["Theme"].str() == "dark" ? "dark" : "light";
+    const auto theme = p["Theme"].str();
+    if (theme != "light" && theme != "dark" && theme != "explorer" && theme != "sky" &&
+        theme != "paper" && theme != "lavender") p["Theme"] = "light";
     if (p["Language"].str() != "en" && p["Language"].str() != "ko") p["Language"] = defaultLanguage();
     p["Width"] = std::clamp(p["Width"].num(1280), 900., 2400.);
     p["Height"] = std::clamp(p["Height"].num(860), 620., 1600.);

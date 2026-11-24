@@ -613,7 +613,7 @@ struct App : DocumentState {
                 toast(clipboard(wide(text), html) ? "선택한 셀을 복사했습니다"
                                                   : "클립보드를 사용할 수 없습니다");
         } else if (type == "hostPreferences") {
-            for (auto key : {"BodyLineHeight", "OutlineLineHeight", "DocumentAlignment", "FontFamily", "SidebarWidth", "Language"})
+            for (auto key : {"BodyLineHeight", "OutlineLineHeight", "DocumentAlignment", "FontFamily", "SidebarWidth", "Language", "Theme"})
                 if (!m["preferences"][key].null())
                     prefs[key] = m["preferences"][key];
             normalizePreferences(prefs);
