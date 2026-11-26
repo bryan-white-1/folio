@@ -40,6 +40,37 @@ test('reference flowchart, themes, zoom and mode changes preserve the document',
   await expect(card).toHaveAttribute('data-state', 'ready'); expect(await snapshot(page)).toEqual(before);
 });
 
+test('small diagrams pan by dragging and zoom around the pointer with Ctrl+wheel', async ({ page }) => {
+  await load(page, fence('flowchart LR\nA --> B'));
+  const card = page.locator('.mermaid-card');
+  await expect(card).toHaveAttribute('data-state', 'ready');
+  await card.getByRole('button', { name: '확대', exact: true }).click();
+  const dialog = page.locator('.mermaid-viewer');
+  const canvas = dialog.locator('.mermaid-canvas');
+  await expect(dialog.locator('output')).toHaveText('100%');
+  const start = (await canvas.boundingBox())!;
+  const x = start.x + start.width / 4, y = start.y + start.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 75, y + 50);
+  await page.mouse.up();
+  const moved = (await canvas.boundingBox())!;
+  expect(moved.x - start.x).toBeCloseTo(75, 0);
+  expect(moved.y - start.y).toBeCloseTo(50, 0);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -120);
+  await expect(dialog.locator('output')).toHaveText('125%');
+  const scaled = (await canvas.boundingBox())!;
+  expect(Math.abs(scaled.x + scaled.width / 4 - (x + 75))).toBeLessThan(1);
+  expect(Math.abs(scaled.y + scaled.height / 2 - (y + 50))).toBeLessThan(1);
+  await page.mouse.wheel(0, 120);
+  await expect(dialog.locator('output')).toHaveText('100%');
+  await page.keyboard.up('Control');
+  await page.mouse.wheel(0, 120);
+  await expect.poll(async () => (await canvas.boundingBox())!.y).toBeLessThan(moved.y - 1);
+  await expect(dialog.locator('output')).toHaveText('100%');
+});
+
 test('all five supported diagram families render alongside normal editable code', async ({ page }) => {
   const diagrams = ['flowchart LR\nA(시작) --> B(완료)', 'sequenceDiagram\n사용자->>서버: 요청\n서버-->>사용자: 응답', 'classDiagram\nAnimal <|-- Duck\nAnimal : +int age', 'stateDiagram-v2\n[*] --> Ready\nReady --> [*]', 'erDiagram\nUSER ||--o{ ORDER : places'];
   await load(page, diagrams.map(code => fence(code)).join('\n\n') + '\n\n' + fence('const value = 1;', 'js'));

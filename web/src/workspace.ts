@@ -1,44 +1,23 @@
 import { t, uiHtml } from './i18n';
-import { detectLanguage } from './text-language';
+import { actionIcon, fileIcon } from './workspace-icons';
 type Packet = { type: string; [key: string]: any };
 type Tab = { id: string; path: string; name: string; kind: string; dirty: boolean; external: boolean; externalVersion: string };
 type Entry = { path: string; name: string; directory: boolean; link: boolean };
 
-const rightChevron = 'M6 3.5 10.5 8 6 12.5';
-function chevronIcon(path: string) {
-  return `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${path}"/></svg>`;
-}
-
-function tabIcon(item: Tab) {
-  const markdown = item.kind === 'markdown';
-  const code = detectLanguage(item.name) !== 'plain' || /\.[cm]?jsx?$/i.test(item.name);
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('class', 'tab-file-icon');
-  svg.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS(svg.namespaceURI!, 'path');
-  const page = 'M5 2.5h9l5 5V21H5z M14 3v5h5 ';
-  const detail = item.kind === 'image' ? 'M7 17l3-4 2 2 2-3 3 5z' : code ? 'M10 11l-3 3 3 3m4-6 3 3-3 3' : 'M8 12h8m-8 4h6';
-  path.setAttribute('d', markdown
-    ? 'M2 5h20v14H2z M5 15V9l3 3 3-3v6 M17 9v6m-3-3 3 3 3-3'
-    : page + detail);
-  svg.append(path);
-  return svg;
-}
 export function installWorkspace(shell: HTMLElement, send: (p: Packet) => void) {
   const command = (name: string, path = '') => send({ type: 'command', name, path });
   const strip = document.createElement('div'); strip.className = 'document-tabs';
   const tabs = document.createElement('div'); tabs.className = 'tab-items'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', t('열린 파일'));
   const nav = document.createElement('div'); nav.className = 'tab-nav';
-  function navButton(label: string, chevron: string) {
+  function navButton(label: string, icon: Parameters<typeof actionIcon>[0]) {
     const button = document.createElement('button');
     button.title = t(label); button.setAttribute('aria-label', button.title);
-    button.innerHTML = chevronIcon(chevron);
+    button.innerHTML = actionIcon(icon);
     nav.append(button); return button;
   }
-  const prev = navButton('이전 탭', 'M10 3.5 5.5 8 10 12.5');
-  const next = navButton('다음 탭', rightChevron);
-  const toggle = navButton('열린 파일 목록', 'M3.5 6 8 10.5 12.5 6');
+  const prev = navButton('이전 탭', 'previous');
+  const next = navButton('다음 탭', 'next');
+  const toggle = navButton('열린 파일 목록', 'down');
   const list = document.createElement('div'); list.id = 'open-file-list'; list.hidden = true;
   list.setAttribute('role', 'menu'); list.setAttribute('aria-label', t('열린 파일 목록'));
   toggle.setAttribute('aria-haspopup', 'menu'); toggle.setAttribute('aria-controls', list.id); toggle.setAttribute('aria-expanded', 'false');
@@ -54,7 +33,7 @@ export function installWorkspace(shell: HTMLElement, send: (p: Packet) => void) 
   for (const node of [...sidebar.children]) if (node.tagName !== 'FOOTER') outline.append(node);
   const chooser = document.createElement('div'); chooser.className = 'sidebar-chooser'; chooser.innerHTML = uiHtml('<button data-pane="files">파일</button><button data-pane="outline">목차</button>');
   const files = document.createElement('div'); files.className = 'folder-pane';
-  files.innerHTML = uiHtml('<div class="folder-actions"><button data-folder="openFolder" title="폴더 열기">폴더 열기</button><button data-folder="refresh" title="새로고침">↻</button><button data-folder="reveal" title="현재 파일 위치">◎</button></div><button class="folder-root"></button><input class="folder-filter" aria-label="표시된 파일 필터" placeholder="표시된 파일 필터"><label class="folder-excluded"><input type="checkbox">제외 폴더 표시</label><div class="folder-tree" role="tree" aria-label="프로젝트 파일"></div>');
+  files.innerHTML = uiHtml(`<div class="folder-actions"><button data-folder="openFolder" title="폴더 열기">폴더 열기</button><button data-folder="refresh" title="새로고침" aria-label="새로고침">${actionIcon('refresh')}</button><button data-folder="reveal" title="현재 파일 위치" aria-label="현재 파일 위치">${actionIcon('reveal')}</button></div><button class="folder-root"></button><input class="folder-filter" aria-label="표시된 파일 필터" placeholder="표시된 파일 필터"><label class="folder-excluded"><input type="checkbox">제외 폴더 표시</label><div class="folder-tree" role="tree" aria-label="프로젝트 파일"></div>`);
   sidebar.prepend(chooser, files, outline);
   const tree = files.querySelector<HTMLElement>('.folder-tree')!, rootLabel = files.querySelector<HTMLElement>('.folder-root')!, filter = files.querySelector<HTMLInputElement>('.folder-filter')!, excluded = files.querySelector<HTMLInputElement>('input[type=checkbox]')!;
   let pane = 'outline', root = '', currentPath = '', currentId = '', entries: Tab[] = [], tabKey = '', generation = 0, selectedPath = '';
@@ -103,13 +82,14 @@ export function installWorkspace(shell: HTMLElement, send: (p: Packet) => void) 
         const toggle = () => { if (!entry.directory || entry.link) return; if (expanded.has(entry.path)) expanded.delete(entry.path); else { expanded.add(entry.path); request(entry.path); } render(); };
         if (entry.directory && !entry.link) {
           row.setAttribute('aria-expanded', String(open));
-          caret.innerHTML = chevronIcon(rightChevron);
+          caret.innerHTML = actionIcon('next');
           caret.onclick = e => { e.stopPropagation(); row.focus(); toggle(); };
           caret.ondblclick = e => e.stopPropagation();
         } else if (entry.directory && entry.link) {
-          caret.textContent = '↗';
+          caret.innerHTML = actionIcon('link');
           row.title += '\n' + t('연결 폴더는 순환 탐색 방지를 위해 펼치지 않습니다.');
         }
+        if (!entry.directory) caret.append(fileIcon(entry.name));
         const activate = () => { if (entry.directory) toggle(); else command('openPath', entry.path); };
         row.onclick = () => { selectedPath = entry.path; tree.querySelectorAll<HTMLElement>('[data-path]').forEach(r => r.setAttribute('aria-selected', String(r === row))); };
         row.ondblclick = activate; row.oncontextmenu = e => { e.preventDefault(); command('copySelectedPath', entry.path); };
@@ -202,7 +182,7 @@ export function installWorkspace(shell: HTMLElement, send: (p: Packet) => void) 
       const parent = item.path.split(/[\\/]/).slice(-2, -1)[0] ?? '';
       const filename = document.createElement('span'); filename.className = 'tab-name';
       filename.textContent = duplicate && parent ? `${item.name} — ${parent}` : item.name;
-      select.append(tabIcon(item), filename);
+      select.append(fileIcon(item.name, item.kind), filename);
       if (item.dirty) select.append('●');
       if (item.external) select.append('⚠');
       row.title = [item.name, item.path, item.external && t('외부 변경 · 다시 읽기 또는 저장 시 확인')].filter(Boolean).join('\n');
@@ -212,12 +192,12 @@ export function installWorkspace(shell: HTMLElement, send: (p: Packet) => void) 
         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); moveTab(e.key === 'ArrowLeft' ? -1 : 1); }
         else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); focusTab(e.key === 'Home' ? 0 : entries.length - 1); }
       };
-      const close = document.createElement('button'); close.className = 'tab-close'; close.textContent = '×'; close.setAttribute('aria-label', `${t('탭 닫기')}: ${item.name}`); close.onclick = () => command('closeTab', item.id);
+      const close = document.createElement('button'); close.className = 'tab-close'; close.innerHTML = actionIcon('close'); close.setAttribute('aria-label', `${t('탭 닫기')}: ${item.name}`); close.onclick = () => command('closeTab', item.id);
       row.append(select, close); tabs.append(row);
       const option = document.createElement('button'); option.tabIndex = -1; option.dataset.fileId = item.id;
       option.setAttribute('role', 'menuitemradio'); option.setAttribute('aria-checked', String(item.id === currentId));
       option.title = item.path || item.name;
-      option.append(tabIcon(item), filename.cloneNode(true));
+      option.append(fileIcon(item.name, item.kind), filename.cloneNode(true));
       if (item.dirty) option.append('●');
       option.onclick = () => { showMenu(false); toggle.focus(); command('activateTab', item.id); };
       list.append(option);

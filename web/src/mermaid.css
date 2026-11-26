@@ -17,6 +17,8 @@ dialog.mermaid-viewer{width:92vw;max-width:1600px;height:90vh;max-height:90vh;pa
 .mermaid-viewer-bar strong{flex:1;font-size:14px;color:var(--muted)}
 .mermaid-viewer-bar button{padding:7px 10px;border:1px solid var(--line);background:var(--paper);white-space:nowrap}
 .mermaid-viewer-bar output{min-width:42px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted)}
-.mermaid-viewport{flex:1;min-height:0;overflow:auto;padding:32px;background:var(--paper);overscroll-behavior:contain}
+.mermaid-viewport{--diagram-inset:32px;flex:1;min-height:0;overflow:auto;container-type:size;background:var(--paper);overscroll-behavior:contain;overflow-anchor:none;cursor:grab;user-select:none}
+.mermaid-viewport.dragging{cursor:grabbing}
+.mermaid-viewer-stage{box-sizing:content-box;width:max-content;min-width:calc(100cqw - 2 * var(--diagram-inset));padding:calc(100cqh + var(--diagram-inset)) calc(100cqw + var(--diagram-inset))}
 .mermaid-canvas{margin:0 auto;line-height:1.4}
-@media(max-width:700px){.mermaid-card-bar{flex-wrap:wrap;gap:4px}.mermaid-status{min-width:40px}.mermaid-diagram{padding:16px}.mermaid-viewer-bar{padding:10px;gap:4px;flex-wrap:wrap}.mermaid-viewer-bar strong{flex-basis:100%}.mermaid-viewport{padding:20px}}
+@media(max-width:700px){.mermaid-card-bar{flex-wrap:wrap;gap:4px}.mermaid-status{min-width:40px}.mermaid-diagram{padding:16px}.mermaid-viewer-bar{padding:10px;gap:4px;flex-wrap:wrap}.mermaid-viewer-bar strong{flex-basis:100%}.mermaid-viewport{--diagram-inset:20px}}

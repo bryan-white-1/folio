@@ -1,4 +1,14 @@
-Updated: 2026-11-24 12:37 KST (UTC+09:00)
+Updated: 2026-11-27 08:09 KST (UTC+09:00)
+
+# Folio 0.2.12 — File icons and neutral highlights
+
+- Tabs and the file tree share icons for Markdown, text, images, React, TypeScript, JSON and other code. The active tab uses its file type color.
+- The default light theme uses white surfaces and rounded gray selections. Workspace actions use consistent 16 px icons.
+- In the Mermaid viewer, use Ctrl + mouse wheel to zoom around the pointer, or drag with the left mouse button to pan.
+
+Windows x64 downloads include the online MSI, portable ZIP, SHA-256 checksums and MSI manifest. Close Folio before upgrading. The online MSI downloads WebView2 if needed. Packages are unsigned.
+
+[Changes since 0.2.11](https://github.com/bryan-white-1/folio/compare/v0.2.11...v0.2.12)
 
 # Folio 0.2.11 — Six workspace themes
 
