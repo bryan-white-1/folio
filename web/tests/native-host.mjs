@@ -95,7 +95,7 @@ try {
   for (const [name, id, tint] of [
     ['Explorer Light', 'explorer', '#d1dbec'], ['Sky Blue', 'sky', '#f2f7fc'],
     ['Paper', 'paper', '#f5f0e6'], ['Lavender', 'lavender', '#f7f5fb'],
-    ['Dark', 'dark', ''], ['Green', 'light', '#f4f8f7'],
+    ['Dark', 'dark', ''], ['Green', 'light', '#ffffff'],
   ]) {
     await page.locator('#host-more').click();
     await page.getByRole('menuitem', { name: '색상 테마' }).click();
