@@ -1,7 +1,4 @@
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import remarkFrontmatter from 'remark-frontmatter';
+import { blocksInRange, markdownTree } from './markdown-tree';
 
 export type ColorAst = { type: string; value?: string; children?: ColorAst[]; color?: string; position?: { start: { offset?: number }; end: { offset?: number } } };
 export type ColorStatus = { enabled: boolean; color: string | null; mixed: boolean };
@@ -65,24 +62,20 @@ export function readTextColors(root: ColorAst) {
   visit(root);
 }
 
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ['yaml', 'toml']);
-let cachedText: string | undefined;
-let cachedBlocks: { node: ColorAst; tags: Set<ColorAst>; leaves: Map<ColorAst, string | null> }[] = [];
-function blocks(text: string) {
-  if (cachedText === text) return cachedBlocks;
-  cachedText = text; cachedBlocks = [];
+function blocks(text: string, from: number, to: number) {
+  const result: { node: ColorAst; tags: Set<ColorAst>; leaves: Map<ColorAst, string | null> }[] = [];
   function visit(node: ColorAst) {
-    if (['paragraph', 'heading', 'tableCell'].includes(node.type)) { cachedBlocks.push({ node, ...inspectTextColors(node) }); return; }
+    if (['paragraph', 'heading', 'tableCell'].includes(node.type)) { result.push({ node, ...inspectTextColors(node) }); return; }
     node.children?.forEach(visit);
   }
-  visit(parser.parse(text) as ColorAst);
-  return cachedBlocks;
+  for (const node of blocksInRange(text, from, to)) visit(node as ColorAst);
+  return result;
 }
 const start = (node: ColorAst) => node.position?.start.offset ?? 0;
 const end = (node: ColorAst) => node.position?.end.offset ?? 0;
 const overlaps = (node: ColorAst, from: number, to: number) => start(node) < to && end(node) > from;
 export function sourceColorStatus(text: string, from: number, to: number): ColorStatus {
-  const colors = blocks(text).flatMap(b => [...b.leaves].filter(([node]) => overlaps(node, from, to)).map(([, color]) => color));
+  const colors = blocks(text, from, to).flatMap(b => [...b.leaves].filter(([node]) => overlaps(node, from, to)).map(([, color]) => color));
   return { enabled: to > from && colors.length > 0, color: colors[0] ?? null, mixed: new Set(colors).size > 1 };
 }
 
@@ -113,7 +106,7 @@ export function sourceColorChanges(text: string, from: number, to: number, color
       offset += line.length + 1;
     });
   }
-  for (const block of blocks(text)) {
+  for (const block of blocks(text, from, to)) {
     if (![...block.leaves].some(([node, previous]) => overlaps(node, from, to) && previous !== color)) continue;
     // Rebuild this inline block's color runs while retaining all original Markdown.
     for (const tag of block.tags) changes.push({ from: start(tag), to: end(tag), insert: '' });
@@ -128,7 +121,7 @@ export function sourceColorChanges(text: string, from: number, to: number, color
   return changes.sort((a, b) => a.from - b.from);
 }
 export function stripTextColors(text: string) {
-  const { tags } = inspectTextColors(parser.parse(text) as ColorAst);
+  const { tags } = inspectTextColors(markdownTree(text) as ColorAst);
   const pieces: string[] = []; let offset = 0;
   for (const node of [...tags].sort((a, b) => start(a) - start(b))) { pieces.push(text.slice(offset, start(node))); offset = end(node); }
   pieces.push(text.slice(offset)); return pieces.join('');

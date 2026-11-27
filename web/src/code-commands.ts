@@ -26,10 +26,8 @@ export const removeCodeBlocks: Command = (state, dispatch) => {
   return true;
 };
 
-let cachedText: string | undefined, cachedBlocks: ReturnType<typeof codeBlocks> = [];
 export function sourceCodeBlocks(text: string, from: number, to: number) {
-  if (text !== cachedText) { cachedText = text; cachedBlocks = codeBlocks(text); }
-  return cachedBlocks.filter(block => from === to ? from >= block.from && from <= block.to : block.from < to && block.to > from);
+  return codeBlocks(text, from, to).filter(block => from === to ? from >= block.from && from <= block.to : block.from < to && block.to > from);
 }
 
 export function sourceCodeRemoval(text: string, from: number, to: number) {

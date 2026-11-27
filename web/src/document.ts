@@ -1,17 +1,12 @@
 import { t } from './i18n';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import remarkFrontmatter from 'remark-frontmatter';
-import { readTextColors } from './text-color-markdown';
+import { blocksInRange, markdownTree } from './markdown-tree';
+import { inspectTextColors } from './text-color-markdown';
 
 export interface Heading { id: string; depth: number; label: string; from: number; to: number; sectionEnd: number; parentId: string | null }
 type Node = { type: string; lang?: string; depth?: number; value?: string; alt?: string; url?: string; children?: Node[]; position?: { start: { offset: number }; end: { offset: number } } };
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ['yaml', 'toml']);
-const plain = (n: Node): string => n.value ?? n.alt ?? n.children?.map(plain).join('') ?? '';
 export const normalize = (text: string) => text.replace(/\r\n?/g, '\n');
 
-export function codeBlocks(text: string) {
+export function codeBlocks(text: string, rangeFrom = 0, rangeTo = text.length) {
   const blocks: { language: string; value: string; from: number; to: number; bodyFrom: number }[] = [];
   function visit(node: Node) {
     if (node.type === 'code' && node.position) {
@@ -27,12 +22,14 @@ export function codeBlocks(text: string) {
     }
     node.children?.forEach(visit);
   }
-  visit(parser.parse(text) as unknown as Node); return blocks;
+  for (const node of blocksInRange(text, rangeFrom, rangeTo)) visit(node as unknown as Node);
+  return blocks;
 }
 
 export function analyze(text: string): { headings: Heading[]; protectedReason: string | null; images: string[] } {
-  const tree = parser.parse(text) as unknown as Node;
-  readTextColors(tree);
+  const tree = markdownTree(text) as unknown as Node;
+  const { tags } = inspectTextColors(tree);
+  const plain = (n: Node): string => tags.has(n) ? '' : n.value ?? n.alt ?? n.children?.map(plain).join('') ?? '';
   const headings: Heading[] = [];
   const images: string[] = [];
   const parents: Heading[] = [];
@@ -45,6 +42,7 @@ export function analyze(text: string): { headings: Heading[]; protectedReason: s
   headings.forEach((h, i) => { h.sectionEnd = headings.slice(i + 1).find(next => next.depth <= h.depth)?.from ?? text.length; });
   let protectedReason: string | null = /^(---|\+\+\+)\n/.test(text) ? t('메타데이터') : null;
   const visit = (n: Node) => {
+    if (tags.has(n)) return;
     if (n.type === 'image' && n.url) images.push(n.url);
     if (['html', 'definition', 'linkReference', 'imageReference', 'footnoteDefinition', 'footnoteReference'].includes(n.type)) protectedReason ??= t('HTML 또는 참조 문법');
     n.children?.forEach(visit);
@@ -80,7 +78,7 @@ export class DocumentModel {
     this.text = normalize(text); this.savedText = dirty ? '\0' : this.text; this.savedFileText = dirty ? '\0' : text;
     this.revision++; this.cursor = 0; this.past = []; this.future = []; this.breakGroup();
   }
-  change(text: string, origin: string, cursor = this.cursor, now = Date.now(), changes?: TextChange[]) {
+  change(text: string, origin: string, cursor = this.cursor, now = Date.now(), changes?: TextChange[], groupEnd = now) {
     text = normalize(text);
     if (text === this.text) { this.cursor = cursor; return false; }
     if (origin !== this.groupOrigin || now - this.groupTime > 650) {
@@ -104,7 +102,7 @@ export class DocumentModel {
       }
     }
     this.future = []; this.text = text; this.cursor = cursor; this.revision++;
-    this.groupTime = now; this.groupOrigin = origin; return true;
+    this.groupTime = groupEnd; this.groupOrigin = origin; return true;
   }
   breakGroup() { this.groupOrigin = ''; this.groupTime = 0; }
   undo() {

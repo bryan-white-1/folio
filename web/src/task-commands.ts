@@ -1,8 +1,5 @@
 import { t } from './i18n';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import remarkFrontmatter from 'remark-frontmatter';
+import { blocksInRange } from './markdown-tree';
 import { AllSelection, TextSelection, type EditorState, type Command } from '@milkdown/kit/prose/state';
 import { wrapRangeInList, splitListItem } from '@milkdown/kit/prose/schema-list';
 import type { Node } from '@milkdown/kit/prose/model';
@@ -12,11 +9,8 @@ const reason = t('일반 문단·목록을 선택하세요. 표·제목·코드�
 const status = (enabled: boolean, active: boolean): TaskStatus => ({ enabled, active, reason: enabled ? '' : reason });
 type Ast = { type: string; children?: Ast[]; position?: { start: { offset: number }; end: { offset: number } } };
 type SourceTarget = { from: number; to: number; active: boolean; list: boolean };
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ['yaml', 'toml']);
-let cachedText: string | undefined, cachedAst: Ast;
 
 function sourceTargets(text: string, from: number, to: number) {
-  if (cachedText !== text) { cachedText = text; cachedAst = parser.parse(text) as unknown as Ast; }
   const lineStart = (pos: number) => text.lastIndexOf('\n', pos - 1) + 1;
   const start = lineStart(from), last = lineStart(to > from ? to - 1 : to);
   const end = text.indexOf('\n', last);
@@ -50,7 +44,7 @@ function sourceTargets(text: string, from: number, to: number) {
       line = next + 1;
     }
   }
-  visit(cachedAst);
+  for (const node of blocksInRange(text, start, limit)) visit(node as unknown as Ast);
   if (!blocked && !targets.size && from === to && !text.slice(start, limit).trim()) {
     targets.set(from, { from, to: from, active: false, list: false });
   }

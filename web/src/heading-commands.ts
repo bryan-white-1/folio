@@ -1,8 +1,5 @@
 import { t } from './i18n';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import remarkFrontmatter from 'remark-frontmatter';
+import { blocksInRange, markdownTree } from './markdown-tree';
 import type { EditorState, Command } from '@milkdown/kit/prose/state';
 import { setBlockType } from '@milkdown/kit/prose/commands';
 import { inspectTextColors, type ColorAst } from './text-color-markdown';
@@ -11,13 +8,10 @@ export interface HeadingStatus { enabled: boolean; level: number | null; reason:
 type Ast = { type: string; depth?: number; children?: Ast[]; position?: { start: { offset: number }; end: { offset: number } } };
 type Block = { from: number; to: number; level: number; content: string; enabled: boolean };
 const reason = t('일반 문단·제목을 선택하세요. 표·코드·보존 구간·강제 줄바꿈은 변환할 수 없습니다.');
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ['yaml', 'toml']);
-let cachedText: string | undefined, cachedBlocks: Block[] = [];
 const containsBreak = (node: Ast, colorTags: Set<ColorAst>): boolean => (!colorTags.has(node) && ['break', 'html', 'linkReference', 'imageReference', 'footnoteReference'].includes(node.type)) || !!node.children?.some(child => containsBreak(child, colorTags));
 
-function sourceBlocks(text: string) {
-  if (text === cachedText) return cachedBlocks;
-  cachedText = text; cachedBlocks = [];
+function sourceBlocks(text: string, rangeFrom = 0, rangeTo = text.length) {
+  const blocks: Block[] = [];
   function visit(node: Ast) {
     if (['root', 'list', 'listItem', 'blockquote'].includes(node.type)) { node.children?.forEach(visit); return; }
     if (!node.position) return;
@@ -35,15 +29,15 @@ function sourceBlocks(text: string) {
       if (/^[ \t]*>/.test(line)) safe = false;
       return line.trim();
     }).join(' ');
-    cachedBlocks.push({ from, to, level: node.depth ?? 0, content,
+    blocks.push({ from, to, level: node.depth ?? 0, content,
       enabled: ['paragraph', 'heading'].includes(node.type) && !containsBreak(node, inspectTextColors(node).tags) && safe });
   }
-  visit(parser.parse(text) as unknown as Ast);
-  return cachedBlocks;
+  for (const node of blocksInRange(text, rangeFrom, rangeTo)) visit(node as unknown as Ast);
+  return blocks;
 }
 
 function selectedSourceBlocks(text: string, from: number, to: number) {
-  const blocks = sourceBlocks(text);
+  const blocks = sourceBlocks(text, from, to);
   const selected = blocks.filter(b => from === to ? from >= b.from && from <= b.to : b.from < to && b.to > from);
   if (selected.length) return selected;
   const start = text.lastIndexOf('\n', from - 1) + 1;
@@ -62,11 +56,12 @@ export function sourceHeadingStatus(text: string, from: number, to: number): Hea
 export function sourceHeadingChanges(text: string, from: number, to: number, level: number) {
   if (!Number.isInteger(level) || level < 0 || level > 6 || !sourceHeadingStatus(text, from, to).enabled) return [];
   const targets = selectedSourceBlocks(text, from, to).filter(b => b.level !== level);
+  const neighbors = level ? [] : sourceBlocks(text);
   return targets.map(b => {
     // Heading text can begin with a block marker; keep it a paragraph when unwrapping.
     let body = b.content;
     if (!level && body) {
-      const standalone = parser.parse(body) as unknown as Ast;
+      const standalone = markdownTree(body) as unknown as Ast;
       if (standalone.children?.[0]?.type !== 'paragraph') body = body.replace(/^(\d+)([.)])/, '$1\\$2').replace(/^([#>*+\-_=~`\[<])/, '\\$1');
     }
     let insert = level ? '#'.repeat(level) + ' ' + body : body;
@@ -74,8 +69,8 @@ export function sourceHeadingChanges(text: string, from: number, to: number, lev
       const lineStart = text.lastIndexOf('\n', b.from - 1) + 1;
       const prefix = text.slice(lineStart, b.from);
       const continuation = prefix.replace(/(?:[*+-]|\d+[.)])\s+/g, marker => ' '.repeat(marker.length));
-      const previous = sourceBlocks(text).find(block => block.to < b.from && text.slice(block.to, lineStart) === '\n');
-      const next = sourceBlocks(text).find(block => block.from > b.to && text.slice(b.to, block.from) === '\n' + continuation);
+      const previous = neighbors.find(block => block.to < b.from && text.slice(block.to, lineStart) === '\n');
+      const next = neighbors.find(block => block.from > b.to && text.slice(b.to, block.from) === '\n' + continuation);
       const previousPrefix = previous ? text.slice(text.lastIndexOf('\n', previous.from - 1) + 1, previous.from) : null;
       if (previous?.enabled && previous.level === 0 && prefix === continuation && previousPrefix === prefix) insert = '\n' + continuation + insert;
       if (next?.enabled && (next.level === 0 || targets.some(target => target.from === next.from))) insert += '\n' + continuation;

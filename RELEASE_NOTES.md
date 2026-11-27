@@ -1,4 +1,14 @@
-Updated: 2026-11-27 08:09 KST (UTC+09:00)
+Updated: 2026-11-27 09:03 KST (UTC+09:00)
+
+# Folio 0.2.13 — Faster typing in large Markdown files
+
+- Source mode shares Markdown analysis across formatting controls and looks up blocks around the current selection.
+- Rendered mode batches Markdown serialization after a typing pause and commits pending edits for save, mode switches and undo.
+- On a 105.7 KiB benchmark document, median input-to-frame latency fell from 123.3 to 11.8 ms in source mode and from 23.3 to 7.5 ms in rendered mode (Windows Edge, seven measured keystrokes).
+
+Windows x64 downloads include the online MSI, portable ZIP, SHA-256 checksums and MSI manifest. Close Folio before upgrading. The MSI downloads WebView2 if needed. Packages are unsigned.
+
+[Changes since 0.2.12](https://github.com/bryan-white-1/folio/compare/v0.2.12...v0.2.13)
 
 # Folio 0.2.12 — File icons and neutral highlights
 

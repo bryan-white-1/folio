@@ -69,6 +69,7 @@ let renderedSearch: RenderedSearch | undefined;
 type FormatTarget = { documentId: string; mode: 'source' | 'rendered'; text: string; from: number; to: number; doc?: ProseNode; selection?: Selection };
 let pendingImage: { requestId: string; target: FormatTarget } | null = null;
 let formatToolbar: FormatToolbar<FormatTarget> | undefined;
+let renderedBatch: { first: number; last: number } | undefined;
 let baseline: ProseNode | null = null;
 let syncing = false;
 let composing = false;
@@ -100,7 +101,10 @@ function createSourceState(filename: string): EditorState {
       if (syncing || kind === 'image') return;
       if (update.docChanged) { const changes: TextChange[] = []; update.changes.iterChanges((from, to, _a, _b, insert) => changes.push({ from, to, insert: insert.toString() })); model.change(update.state.doc.toString(), 'source', update.state.selection.main.head, Date.now(), changes); schedulePublish(); }
       if (update.selectionSet) { model.cursor = update.state.selection.main.head; selectHeading(model.cursor); }
-      if (kind === 'markdown') formatToolbar?.update(); updateCommandButtons(); updateTextStatus();
+      if (update.selectionSet && !update.docChanged && kind === 'markdown') {
+        formatToolbar?.update(); updateCommandButtons();
+      }
+      updateTextStatus();
     }),
   ] });
 }
@@ -155,17 +159,29 @@ lineButton.onclick = () => {
   dialog.onclose = () => { dialog.remove(); source.focus(); }; dialog.showModal(); input.select();
 };
 
-function schedulePublish() { clearTimeout(updateTimer); updateChrome(); updateTimer = setTimeout(publish, 140); }
-function updateChrome() {
-  $('dirty-dot').classList.toggle('visible', model.dirty);
-  ($('undo') as HTMLButtonElement).disabled = !model.canUndo;
-  ($('redo') as HTMLButtonElement).disabled = !model.canRedo;
+function schedulePublish() {
+  clearTimeout(updateTimer);
+  updateEditIndicators();
+  updateTimer = setTimeout(publish, 140);
+}
+function updateEditIndicators() {
+  $('dirty-dot').classList.toggle('visible', !!renderedBatch || model.dirty);
+  ($('undo') as HTMLButtonElement).disabled = !renderedBatch && !model.canUndo;
+  ($('redo') as HTMLButtonElement).disabled = !!renderedBatch || !model.canRedo;
   textUndo.disabled = !model.canUndo; textRedo.disabled = !model.canRedo;
+}
+function updateChrome() {
+  updateEditIndicators();
   $('stats').textContent = tr`${model.text.length.toLocaleString()}자 · ${model.text.split('\n').length.toLocaleString()}줄`;
   if (kind === 'markdown') formatToolbar?.update();
   updateTextStatus(); updateCommandButtons();
 }
 function publish() {
+  if (renderedBatch) {
+    if (composing) return;
+    flushRendered();
+  }
+  clearTimeout(updateTimer);
   ({ headings } = analysis());
   updateChrome();
   send({ type: 'changed', ...snapshot(), mode, cursor: model.cursor, headings });
@@ -187,9 +203,11 @@ function renderedCursor() {
 function flushRendered() {
   if (!editor || syncing || mode !== 'rendered' || composing) return;
   const doc = editor.action(ctx => ctx.get(editorViewCtx).state.doc);
+  const batch = renderedBatch;
+  renderedBatch = undefined;
   if (baseline?.eq(doc)) return;
   const text = editor.action(getMarkdown());
-  model.change(text, 'rendered', renderedCursor()); baseline = doc; schedulePublish();
+  model.change(text, 'rendered', renderedCursor(), batch?.first, undefined, batch?.last); baseline = doc; schedulePublish();
 }
 function refreshRendered() {
   if (kind !== 'markdown') return;
@@ -550,7 +568,11 @@ const syncPlugin = $prose(() => new Plugin({
     const isDragging = !!columnResizingPluginKey.getState(view.state)?.dragging;
     if (isDragging && !wasDragging) { flushRendered(); model.breakGroup(); }
     if (wasDragging && !isDragging) { flushRendered(); model.breakGroup(); }
-    if (!view.state.doc.eq(previous.doc)) queueMicrotask(flushRendered);
+    if (mode === 'rendered' && !view.state.doc.eq(previous.doc)) {
+      const now = Date.now();
+      renderedBatch = { first: renderedBatch?.first ?? now, last: now };
+      schedulePublish();
+    }
     if (!view.state.selection.eq(previous.selection)) { model.cursor = renderedCursor(); selectHeading(model.cursor); }
     formatToolbar?.update(); updateCommandButtons();
   } }),
@@ -739,7 +761,7 @@ installImageClipboard({ begin: beginImageRequest,
   send: (requestId, images) => { if (pendingImage?.requestId === requestId) send({ type: 'importImages', requestId, images }); },
   cancel: requestId => { if (pendingImage?.requestId === requestId) pendingImage = null; }, notify: toast,
 });
-document.addEventListener('compositionend', () => { composing = false; setTimeout(flushRendered, 0); });
+document.addEventListener('compositionend', () => { composing = false; if (mode === 'rendered') schedulePublish(); });
 $('rendered-mode').onclick = () => void switchMode('rendered');
 $('source-mode').onclick = () => void switchMode('source');
 $('undo').onclick = () => void history(); $('redo').onclick = () => void history(true);

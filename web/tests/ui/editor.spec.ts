@@ -138,3 +138,21 @@ test('composition is committed before taking a host save snapshot', async ({ pag
   await page.locator('.ProseMirror').dispatchEvent('compositionend');
   await expect.poll(async () => (await snapshot(page)).text).toContain('조합');
 });
+test('immediate undo and redo preserve rendered typing groups across an idle pause', async ({ page }) => {
+  await load(page, 'First paragraph\n');
+  const editor = page.locator('.ProseMirror');
+  await editor.focus();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' abc');
+  // The model starts a new undo group after 650ms without input.
+  await page.waitForTimeout(750);
+  await page.keyboard.type(' def');
+  await page.keyboard.press('Control+z');
+  await expect(editor).toHaveText('First paragraph abc');
+  await page.keyboard.press('Control+y');
+  await expect(editor).toHaveText('First paragraph abc def');
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('g');
+  await page.locator('#source-mode').click();
+  await expect(page.locator('.cm-content')).toContainText('First paragraph abc defg');
+});
